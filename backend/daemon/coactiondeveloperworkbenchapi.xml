@@ -1,0 +1,33 @@
+<service>
+	<id>coactiondeveloperworkbenchapi.exe</id>
+	<name>CoAction API</name>
+	<description>Express backend for CoAction</description>
+	<executable>C:\Program Files\nodejs\node.exe</executable>
+	<argument>--harmony</argument>
+	<argument>C:\Users\dvudattu\AppData\Roaming\npm\node_modules\node-windows\lib\wrapper.js</argument>
+	<argument>--file</argument>
+	<argument>C:\Users\dvudattu\OneDrive - Coaction Specialty Management Company, Inc\Desktop\CoAction_Developer_Workbench_React\coaction-developer-workbench-react\backend\server.js</argument>
+	<argument>--scriptoptions=</argument>
+	<argument>--log</argument>
+	<argument>CoAction API wrapper</argument>
+	<argument>--grow</argument>
+	<argument>0.25</argument>
+	<argument>--wait</argument>
+	<argument>1</argument>
+	<argument>--maxrestarts</argument>
+	<argument>3</argument>
+	<argument>--abortonerror</argument>
+	<argument>n</argument>
+	<argument>--stopparentfirst</argument>
+	<argument>undefined</argument>
+	<logmode>rotate</logmode>
+	<stoptimeout>30sec</stoptimeout>
+	<env name="NODE_ENV" value="production"/>
+	<env name="PORT" value="8787"/>
+	<serviceaccount>
+		<domain>AZE-IT-3</domain>
+		<user>LocalSystem</user>
+		<password></password>
+	</serviceaccount>
+	<workingdirectory>C:\Users\dvudattu\OneDrive - Coaction Specialty Management Company, Inc\Desktop\CoAction_Developer_Workbench_React\coaction-developer-workbench-react</workingdirectory>
+</service>

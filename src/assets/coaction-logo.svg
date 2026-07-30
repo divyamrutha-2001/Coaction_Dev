@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 320" role="img" aria-label="CO ACTION logo">
+  <rect width="2048" height="320" rx="20" ry="20" fill="#24384a" />
+
+  <g fill="#ffffff" font-family="Arial Black, Segoe UI Black, Arial, Helvetica, sans-serif" font-weight="900" text-rendering="geometricPrecision">
+    <text x="24" y="278" font-size="280" letter-spacing="1">C</text>
+    <text x="230" y="118" font-size="110">*</text>
+    <text x="300" y="278" font-size="280" letter-spacing="1">O</text>
+    <text x="528" y="292" font-size="320" font-weight="700">/</text>
+    <text x="654" y="278" font-size="280" letter-spacing="3">ACTION</text>
+    <text x="1988" y="98" font-size="68">®</text>
+  </g>
+</svg>
