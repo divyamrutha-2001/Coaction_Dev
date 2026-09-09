@@ -1,19 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { apiClient } from '../services/apiClient'
+import { apis as seedApis } from '../data/apis'
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#f97316', '#ec4899']
 
-function parseCallMetric(value) {
+// Consumers-based synthesis: keeps totals aligned with the dashboard chart (~600 calls/day, ~18K/month).
+const CALLS_PER_CONSUMER_MONTHLY = 450
+const CALLS_PER_CONSUMER_WEEKLY = 105
+const ERROR_RATE_OF_CALLS = 0.005
+
+// Seed lookup lets us surface latency / error rate even when the DB row is missing those columns.
+const seedByName = new Map(seedApis.map((a) => [a.name, a]))
+
+function parseNumericMetric(value) {
   if (typeof value === 'number') return value
   if (typeof value !== 'string') return 0
-
-  const normalized = value.trim().toUpperCase()
-  if (normalized.endsWith('K')) {
-    return Math.round(Number.parseFloat(normalized.slice(0, -1)) * 1000)
-  }
-
-  return Number.parseInt(normalized, 10) || 0
+  return Number.parseFloat(value) || 0
 }
 
 export default function Usage() {
@@ -23,13 +26,29 @@ export default function Usage() {
   })
 
   const usageApis = apis.slice(0, 8)
-  const monthlyCallFactor = 0.08
-  const totalCalls30d = apis.reduce((sum, api) => sum + Math.round(parseCallMetric(api.calls) * monthlyCallFactor), 0)
+  const monthlyCalls = (api) => (Number(api.consumers) || 0) * CALLS_PER_CONSUMER_MONTHLY
+  const totalCalls30d = apis.reduce((sum, api) => sum + monthlyCalls(api), 0)
+
+  // Call-weighted averages so heavy-traffic APIs drive the overall KPIs; falls back to seed data when the DB row is empty.
+  const weightedTotals = apis.reduce(
+    (acc, api) => {
+      const weight = monthlyCalls(api)
+      if (!weight) return acc
+      const seed = seedByName.get(api.name) || {}
+      acc.latencySum += parseNumericMetric(api.latency || seed.latency) * weight
+      acc.errorSum += parseNumericMetric(api.errorRate || seed.errorRate) * weight
+      acc.weight += weight
+      return acc
+    },
+    { latencySum: 0, errorSum: 0, weight: 0 },
+  )
+  const avgLatency = weightedTotals.weight ? Math.round(weightedTotals.latencySum / weightedTotals.weight) : 0
+  const avgErrorRate = weightedTotals.weight ? (weightedTotals.errorSum / weightedTotals.weight).toFixed(2) : '0.00'
 
   const chartData = usageApis.map((api) => ({
     name: api.name.substring(0, 10),
-    calls: Math.round(parseCallMetric(api.calls) * monthlyCallFactor),
-    errors: Math.max(3, Math.round(parseCallMetric(api.calls) * 0.0012)),
+    calls: monthlyCalls(api),
+    errors: Math.max(1, Math.round(monthlyCalls(api) * ERROR_RATE_OF_CALLS)),
   }))
 
   const typeDistribution = [
@@ -52,11 +71,11 @@ export default function Usage() {
         </div>
         <div className="card-base p-6">
           <h3 className="text-sm text-muted mb-2">Avg Error Rate</h3>
-          <p className="text-3xl font-bold text-accent">0.42%</p>
+          <p className="text-3xl font-bold text-accent">{avgErrorRate}%</p>
         </div>
         <div className="card-base p-6">
           <h3 className="text-sm text-muted mb-2">Avg Response Time</h3>
-          <p className="text-3xl font-bold text-primary">240ms</p>
+          <p className="text-3xl font-bold text-primary">{avgLatency}ms</p>
         </div>
       </div>
 
@@ -104,8 +123,8 @@ export default function Usage() {
         <div className="space-y-3">
           {usageApis.slice(0, 5).map((api) => {
             const availability = Math.floor(Math.random() * 5) + 95
-            const weeklyCalls = Math.max(120, Math.round(parseCallMetric(api.calls) * 0.018))
-            const weeklyErrors = Math.max(1, Math.round(weeklyCalls * 0.004))
+            const weeklyCalls = Math.max(10, (Number(api.consumers) || 0) * CALLS_PER_CONSUMER_WEEKLY)
+            const weeklyErrors = Math.max(1, Math.round(weeklyCalls * ERROR_RATE_OF_CALLS))
             return (
               <div key={api.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
                 <div>

@@ -5,14 +5,24 @@ import { useForm } from 'react-hook-form'
 import { AlertCircle, CheckCircle, Upload as UploadIcon } from 'lucide-react'
 import { apiClient } from '../services/apiClient'
 
-const DOMAINS = ['Submission', 'Policy', 'Claims', 'Billing']
-const TEAMS = ['Architecture Team', 'Submission Team', 'Policy Team', 'Claims Team', 'Billing Team']
+const DOMAINS = ['Submissions', 'Underwriting', 'Policy', 'Claims', 'Data Services']
+const TEAMS = ['Submissions Team', 'Underwriting Team', 'Policy Team', 'Claims Team', 'Data Services Team']
+const TAB_ORDER = ['basic', 'spec', 'samples', 'tags', 'version']
+
+function validateJson(text) {
+  if (!text || !text.trim()) return { ok: true, parsed: null }
+  try {
+    return { ok: true, parsed: JSON.parse(text) }
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+}
 
 export default function Upload() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('basic')
-  const { register, handleSubmit, formState: { errors }, watch } = useForm()
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm()
   const [success, setSuccess] = useState('')
   const [validationError, setValidationError] = useState('')
   const [uploadedFile, setUploadedFile] = useState(null)
@@ -30,29 +40,25 @@ export default function Upload() {
   const tabs = [
     { id: 'basic', label: '1. Basic Info' },
     { id: 'spec', label: '2. Documentation' },
-    { id: 'tags', label: '3. Tags' },
-    { id: 'version', label: '4. Version' },
+    { id: 'samples', label: '3. Sample Payloads' },
+    { id: 'tags', label: '4. Tags' },
+    { id: 'version', label: '5. Version' },
   ]
 
   const formData = watch()
 
-  // Check if each tab is complete
-  const isBasicComplete = formData.name?.trim() && formData.type && formData.domain
-  const isSpecComplete = true // Optional fields
-  const isTagsComplete = true // Optional fields
-  
-  // Determine which tabs are accessible based on completion of previous tabs
-  const canAccessSpec = isBasicComplete
-  const canAccessTags = isBasicComplete && isSpecComplete
-  const canAccessVersion = isBasicComplete && isSpecComplete && isTagsComplete
+  const isBasicComplete =
+    Boolean(formData.name?.trim()) && Boolean(formData.type) && Boolean(formData.domain)
 
-  const isTabDisabled = (tabId) => {
-    if (tabId === 'basic') return false
-    if (tabId === 'spec') return !canAccessSpec
-    if (tabId === 'tags') return !canAccessTags
-    if (tabId === 'version') return !canAccessVersion
-    return true
+  const canAccess = {
+    basic: true,
+    spec: isBasicComplete,
+    samples: isBasicComplete,
+    tags: isBasicComplete,
+    version: isBasicComplete,
   }
+
+  const isTabDisabled = (tabId) => !canAccess[tabId]
 
   const handleTabClick = (tabId) => {
     // Only allow clicking tabs that are not disabled
@@ -64,10 +70,8 @@ export default function Upload() {
   }
 
   const handleNext = () => {
-    const tabOrder = ['basic', 'spec', 'tags', 'version']
-    const currentIndex = tabOrder.indexOf(activeTab)
-    
-    // Validate current tab before moving to next
+    const currentIndex = TAB_ORDER.indexOf(activeTab)
+
     if (activeTab === 'basic') {
       if (!formData.name || !formData.name.trim()) {
         setValidationError('API Name is required')
@@ -82,11 +86,23 @@ export default function Upload() {
         return
       }
     }
-    // Other tabs are optional, just proceed to next
-    
+
+    if (activeTab === 'samples') {
+      const req = validateJson(formData.sampleRequest)
+      if (!req.ok) {
+        setValidationError(`Sample request is not valid JSON: ${req.error}`)
+        return
+      }
+      const res = validateJson(formData.sampleResponse)
+      if (!res.ok) {
+        setValidationError(`Sample response is not valid JSON: ${res.error}`)
+        return
+      }
+    }
+
     setValidationError('')
-    if (currentIndex < tabOrder.length - 1) {
-      setActiveTab(tabOrder[currentIndex + 1])
+    if (currentIndex < TAB_ORDER.length - 1) {
+      setActiveTab(TAB_ORDER[currentIndex + 1])
     }
   }
 
@@ -133,6 +149,13 @@ export default function Upload() {
     setFilePreview('')
   }
 
+  function prettyPrintField(field) {
+    const parsed = validateJson(formData[field])
+    if (parsed.ok && parsed.parsed !== null) {
+      setValue(field, JSON.stringify(parsed.parsed, null, 2), { shouldDirty: true })
+    }
+  }
+
   const onSubmit = (data) => {
     // Final validation before submitting
     if (!data.name || !data.name.trim()) {
@@ -155,15 +178,34 @@ export default function Upload() {
       return
     }
 
+    const req = validateJson(data.sampleRequest)
+    if (!req.ok) {
+      setValidationError(`Sample request is not valid JSON: ${req.error}`)
+      setActiveTab('samples')
+      return
+    }
+    const res = validateJson(data.sampleResponse)
+    if (!res.ok) {
+      setValidationError(`Sample response is not valid JSON: ${res.error}`)
+      setActiveTab('samples')
+      return
+    }
+
     setValidationError('')
-    mutation.mutate(data)
+    mutation.mutate({
+      ...data,
+      sampleRequest: req.parsed,
+      sampleResponse: res.parsed,
+    })
   }
 
   return (
     <div className="flex flex-col gap-8 p-8">
       <div>
         <h1 className="text-4xl font-bold mb-2">Upload API</h1>
-        <p className="text-muted">Register a new API in the catalog</p>
+        <p className="text-muted">
+          Register a new API in the CoAction catalog. Fields marked * are required; everything else can be filled in later.
+        </p>
       </div>
 
       {success && (
@@ -215,7 +257,7 @@ export default function Upload() {
                 <input
                   {...register('name', { required: 'Name is required' })}
                   type="text"
-                  placeholder="e.g., Claims Bordereaux API"
+                  placeholder="e.g., Quote API, FNOL API, Policy Lookup API"
                   className="input-base w-full"
                 />
                 {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
@@ -257,17 +299,20 @@ export default function Upload() {
                 <label className="block text-sm font-medium mb-2">Endpoint</label>
                 <input
                   {...register('endpoint')}
-                  type="url"
-                  placeholder="https://api.example.com/v1"
+                  type="text"
+                  placeholder="e.g., POST /api/v1/quotes"
                   className="input-base w-full"
                 />
+                <p className="text-xs text-muted mt-1">
+                  Include the HTTP method for REST endpoints (e.g., <code>GET /api/v1/policies/{'{policyNumber}'}</code>).
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Documentation URL</label>
                 <input
                   {...register('docs')}
                   type="url"
-                  placeholder="https://docs.example.com"
+                  placeholder="https://docs.coaction.com/apis/quote"
                   className="input-base w-full"
                 />
               </div>
@@ -328,6 +373,59 @@ export default function Upload() {
             </div>
           )}
 
+          {activeTab === 'samples' && (
+            <div className="space-y-6">
+              <p className="text-sm text-muted">
+                Paste example JSON so developers see what a real request and response look like. These show up in
+                the API Library preview under the{' '}
+                <span className="font-semibold text-foreground">Request</span> and{' '}
+                <span className="font-semibold text-foreground">Response</span> tabs. Leave either blank if it
+                doesn't apply — GET endpoints, for example, have no request body.
+              </p>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">Sample Request (JSON)</label>
+                  <button
+                    type="button"
+                    onClick={() => prettyPrintField('sampleRequest')}
+                    className="bg-transparent text-xs font-semibold underline"
+                    style={{ color: 'hsl(var(--primary))', padding: 0 }}
+                  >
+                    Format
+                  </button>
+                </div>
+                <textarea
+                  {...register('sampleRequest')}
+                  placeholder={`{\n  "submissionId": "SUB-2026-10452",\n  "coverage": "GENERAL_LIABILITY",\n  "limit": 2000000,\n  "deductible": 25000\n}`}
+                  className="input-base w-full font-mono text-xs"
+                  style={{ minHeight: '9rem', whiteSpace: 'pre' }}
+                />
+                <p className="text-xs text-muted mt-1">Leave blank for GET endpoints. Must be valid JSON.</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">Sample Response (JSON)</label>
+                  <button
+                    type="button"
+                    onClick={() => prettyPrintField('sampleResponse')}
+                    className="bg-transparent text-xs font-semibold underline"
+                    style={{ color: 'hsl(var(--primary))', padding: 0 }}
+                  >
+                    Format
+                  </button>
+                </div>
+                <textarea
+                  {...register('sampleResponse')}
+                  placeholder={`{\n  "quoteId": "QTE-45092",\n  "premium": 185000,\n  "totalCost": 193200\n}`}
+                  className="input-base w-full font-mono text-xs"
+                  style={{ minHeight: '9rem', whiteSpace: 'pre' }}
+                />
+              </div>
+            </div>
+          )}
+
           {activeTab === 'tags' && (
             <div className="space-y-4">
               <div>
@@ -335,9 +433,12 @@ export default function Upload() {
                 <input
                   {...register('tags')}
                   type="text"
-                  placeholder="Comma-separated tags"
+                  placeholder="Comma-separated, e.g. Production, ACORD, Underwriting"
                   className="input-base w-full"
                 />
+                <p className="text-xs text-muted mt-1">
+                  Common CoAction tags: Production, QA, Beta, ACORD, Underwriting, Claims, Data Services, PII.
+                </p>
               </div>
             </div>
           )}
@@ -350,7 +451,7 @@ export default function Upload() {
                   <input
                     {...register('version')}
                     type="text"
-                    defaultValue="v1.0.0"
+                    defaultValue="v1.0"
                     className="input-base w-full"
                   />
                 </div>
@@ -365,18 +466,27 @@ export default function Upload() {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Lifecycle</label>
-                <select {...register('lifecycle')} className="input-base w-full">
+                <select {...register('lifecycle')} className="input-base w-full" defaultValue="Draft">
                   <option value="Draft">Draft</option>
-                  <option value="Published">Published</option>
                   <option value="Beta">Beta</option>
+                  <option value="Published">Published</option>
                   <option value="Deprecated">Deprecated</option>
                 </select>
+                <p className="text-xs text-muted mt-1">
+                  New APIs typically land as <span className="font-semibold text-foreground">Draft</span> and are promoted to Published after review.
+                </p>
               </div>
             </div>
           )}
 
-          <div className="flex gap-3 justify-end pt-4">
-            <button type="button" className="btn-ghost px-6 py-2">Cancel</button>
+          <div className="flex gap-3 justify-end pt-4 border-t border-border">
+            <button
+              type="button"
+              onClick={() => navigate('/api-library')}
+              className="btn-ghost px-6 py-2"
+            >
+              Cancel
+            </button>
             {activeTab !== 'version' ? (
               <button 
                 type="button" 

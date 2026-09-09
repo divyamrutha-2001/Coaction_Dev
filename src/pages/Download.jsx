@@ -6,91 +6,16 @@ import { apiClient } from '../services/apiClient'
 const DOMAINS = ['Policy', 'Claims', 'Billing', 'Subscription']
 const API_TYPES = ['REST', 'Internal', 'SOAP']
 
-function getArtifactsForApi(api) {
-  if (api.type === 'SOAP') {
-    return ['WSDL', 'Sample SOAP', 'Docs']
+function formatJson(obj) {
+  if (!obj) return '{}'
+  if (typeof obj === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(obj), null, 2)
+    } catch {
+      return obj
+    }
   }
-
-  return ['OpenAPI', 'Postman', 'Samples', 'Docs']
-}
-
-function getPreviewLines(api, artifact) {
-  if (artifact === 'Docs') {
-    return [
-      `# ${api.name} Documentation`,
-      '',
-      `Version: ${api.version}`,
-      `Type: ${api.type}`,
-      `Owner: ${api.owner || 'N/A'}`,
-      `Endpoint: ${api.endpoint}`,
-      '',
-      api.desc || 'No description available.',
-    ]
-  }
-
-  if (artifact === 'Postman') {
-    return [
-      '{',
-      '  "info": {',
-      `    "name": "${api.name}",`,
-      `    "version": "${api.version}"`,
-      '  },',
-      '  "item": [',
-      '    {',
-      `      "name": "Get ${api.name}",`,
-      `      "request": { "method": "GET", "url": "${api.endpoint}" }`,
-      '    }',
-      '  ]',
-      '}',
-    ]
-  }
-
-  if (artifact === 'Samples') {
-    return [
-      `fetch('${api.endpoint}', {`,
-      "  method: 'GET',",
-      "  headers: { 'Content-Type': 'application/json' }",
-      '})',
-      '  .then((response) => response.json())',
-      '  .then((data) => console.log(data))',
-      '  .catch((error) => console.error(error))',
-    ]
-  }
-
-  if (artifact === 'Sample SOAP') {
-    return [
-      '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">',
-      '  <soapenv:Header/>',
-      '  <soapenv:Body>',
-      `    <Get${api.name.replace(/\s+/g, '')}Request />`,
-      '  </soapenv:Body>',
-      '</soapenv:Envelope>',
-    ]
-  }
-
-  if (artifact === 'WSDL') {
-    return [
-      '<?xml version="1.0" encoding="utf-8"?>',
-      '<definitions xmlns="http://schemas.xmlsoap.org/wsdl/">',
-      `  <service name="${api.name.replace(/\s+/g, '')}">`,
-      '    <port binding="tns:Binding">',
-      `      <soap:address location="${api.endpoint}" />`,
-      '    </port>',
-      '  </service>',
-      '</definitions>',
-    ]
-  }
-
-  return [
-    'openapi: 3.0.0',
-    'info:',
-    `  title: ${api.name}`,
-    `  version: ${api.version}`,
-    'paths:',
-    `  ${api.endpoint}:`,
-    '    get:',
-    `      summary: Get ${api.name}`,
-  ]
+  return JSON.stringify(obj, null, 2)
 }
 
 export default function Download() {
@@ -98,7 +23,6 @@ export default function Download() {
   const [apiType, setApiType] = useState('All')
   const [expandedApi, setExpandedApi] = useState(null)
   const [expandedPreview, setExpandedPreview] = useState(null)
-  const [previewArtifacts, setPreviewArtifacts] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
 
   const { data: apis = [] } = useQuery({
@@ -145,22 +69,7 @@ export default function Download() {
   }
 
   const handlePreviewToggle = (api) => {
-    const nextExpanded = expandedPreview === api.id ? null : api.id
-    setExpandedPreview(nextExpanded)
-
-    if (nextExpanded === api.id && !previewArtifacts[api.id]) {
-      setPreviewArtifacts((current) => ({
-        ...current,
-        [api.id]: getArtifactsForApi(api)[0],
-      }))
-    }
-  }
-
-  const handlePreviewArtifactSelect = (api, artifact) => {
-    setPreviewArtifacts((current) => ({
-      ...current,
-      [api.id]: artifact,
-    }))
+    setExpandedPreview(expandedPreview === api.id ? null : api.id)
   }
 
   return (
@@ -176,7 +85,7 @@ export default function Download() {
         <div className="flex gap-4">
           <div className="p-4 flex flex-col items-center justify-center rounded-lg" style={{ backgroundColor: '#f5f5f5', minWidth: '110px' }}>
             <p className="text-2xl font-bold" style={{ color: '#1a3a52' }}>{stats.total}</p>
-            <p className="text-xs font-semibold text-gray-600 mt-2 tracking-wider">TOTAL APIS</p>
+            <p className="text-xs font-semibold text-gray-600 mt-2 tracking-wider">TOTAL APIs</p>
           </div>
           <div className="p-4 flex flex-col items-center justify-center rounded-lg" style={{ backgroundColor: '#d1fae5', minWidth: '110px' }}>
             <p className="text-2xl font-bold" style={{ color: '#059669' }}>{stats.rest}</p>
@@ -303,63 +212,37 @@ export default function Download() {
               </button>
               {expandedPreview === api.id && (
                 <div className="mt-3 space-y-4 bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg">
-                  {(() => {
-                    const selectedArtifact = previewArtifacts[api.id] || getArtifactsForApi(api)[0]
-                    const previewLines = getPreviewLines(api, selectedArtifact)
-
-                    return (
-                      <>
-                  {/* Artifacts Section */}
+                  {/* API Details */}
                   <div>
-                    <h4 className="font-semibold text-xs uppercase text-muted mb-2">Artifacts you are going to download</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {getArtifactsForApi(api).map((artifact) => (
-                        <button
-                          key={artifact}
-                          onClick={() => handlePreviewArtifactSelect(api, artifact)}
-                          className={`text-xs px-3 py-1.5 rounded transition-colors ${
-                            selectedArtifact === artifact
-                              ? 'bg-primary text-white'
-                              : 'bg-white text-primary border border-primary'
-                          }`}
-                        >
-                          {artifact}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => handleDownload(api, selectedArtifact)}
-                        className="bg-primary text-white text-xs px-3 py-1.5 rounded hover:bg-primary/90 transition-colors"
-                      >
-                        Download selected
-                      </button>
+                    <h4 className="font-semibold text-xs uppercase text-muted mb-3">API Details</h4>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div><span className="text-foreground font-medium">Endpoint:</span> <span className="text-muted">{api.endpoint}</span></div>
+                      <div><span className="text-foreground font-medium">Type:</span> <span className="text-muted">{api.type}</span></div>
+                      <div><span className="text-foreground font-medium">Version:</span> <span className="text-muted">{api.version}</span></div>
+                      <div><span className="text-foreground font-medium">Owner:</span> <span className="text-muted">{api.owner}</span></div>
+                      <div className="col-span-2"><span className="text-foreground font-medium">Description:</span> <span className="text-muted">{api.desc}</span></div>
                     </div>
                   </div>
 
-                  {/* Code Preview */}
-                  <div className="bg-gray-900 dark:bg-slate-950 border border-border rounded-lg p-3 font-mono text-xs text-gray-200 overflow-x-auto">
-                    <div className="text-gray-400 mb-2">Previewing {selectedArtifact}</div>
-                    <div className="space-y-1">
-                      {previewLines.map((line, index) => (
-                        <div key={`${selectedArtifact}-${index}`}>{line}</div>
-                      ))}
+                  {/* Sample Request */}
+                  {api.sampleRequest && (
+                    <div>
+                      <h4 className="font-semibold text-xs uppercase text-muted mb-2">Sample Request</h4>
+                      <div className="bg-gray-900 dark:bg-slate-950 border border-border rounded-lg p-3 font-mono text-xs text-gray-200 overflow-x-auto max-h-48 overflow-y-auto">
+                        <pre className="whitespace-pre-wrap break-words">{formatJson(api.sampleRequest)}</pre>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Contract Preview */}
-                  <div>
-                    <h4 className="font-semibold text-xs uppercase text-muted mb-2">Contract preview</h4>
-                    <div className="space-y-1 text-xs">
-                      <div><span className="text-foreground">Artifact:</span> <span className="text-muted">{selectedArtifact}</span></div>
-                      <div><span className="text-foreground">API:</span> <span className="text-muted">{api.name}</span></div>
-                      <div><span className="text-foreground">Version:</span> <span className="text-muted">{api.version}</span></div>
-                      <div><span className="text-foreground">Type:</span> <span className="text-muted">{api.type}</span></div>
-                      <div><span className="text-foreground">Endpoint:</span> <span className="text-muted">{api.endpoint}</span></div>
-                      <div><span className="text-foreground">Owner:</span> <span className="text-muted">{api.owner}</span></div>
+                  {/* Sample Response */}
+                  {api.sampleResponse && (
+                    <div>
+                      <h4 className="font-semibold text-xs uppercase text-muted mb-2">Sample Response</h4>
+                      <div className="bg-gray-900 dark:bg-slate-950 border border-border rounded-lg p-3 font-mono text-xs text-gray-200 overflow-x-auto max-h-48 overflow-y-auto">
+                        <pre className="whitespace-pre-wrap break-words">{formatJson(api.sampleResponse)}</pre>
+                      </div>
                     </div>
-                  </div>
-                      </>
-                    )
-                  })()}
+                  )}
                 </div>
               )}
             </div>

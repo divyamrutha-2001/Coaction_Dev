@@ -4,6 +4,7 @@ import cors from 'cors'
 import { Pool } from 'pg'
 import { randomUUID } from 'crypto'
 import { apis as seedApis } from '../src/data/apis.js'
+import { samplePayloads } from '../src/data/samplePayloads.js'
 
 const PORT = Number(process.env.PORT || 8787)
 const DB_SCHEMA = process.env.DB_SCHEMA || 'public'
@@ -90,6 +91,8 @@ function formatApiRow(row) {
     errorLevel: row.error_level,
     trend: row.trend,
     trendLevel: row.trend_level,
+    sampleRequest: row.sample_request || null,
+    sampleResponse: row.sample_response || null,
     createdAt: row.created_at,
   }
 }
@@ -102,17 +105,28 @@ async function tryApiInsert(payload, createdAt) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
 
+  const sampleRequestJson = payload.sampleRequest ? JSON.stringify(payload.sampleRequest) : null
+  const sampleResponseJson = payload.sampleResponse ? JSON.stringify(payload.sampleResponse) : null
+  const tagsFromString =
+    typeof payload.tags === 'string'
+      ? payload.tags.split(',').map((t) => t.trim()).filter(Boolean)
+      : Array.isArray(payload.tags)
+      ? payload.tags
+      : []
+
   const attempts = [
     {
       sql: `
         INSERT INTO apis (
           api_id, name, version, lifecycle, type, description,
           owner, consumers, status, published, endpoint,
-          environment, restricted, created_at, updated_at
+          environment, restricted, tags_json, sample_request, sample_response,
+          created_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11,
-          $12, $13, $14, $15
+          $12, $13, $14::jsonb, $15::jsonb, $16::jsonb,
+          $17, $18
         )
         RETURNING *
       `,
@@ -130,6 +144,9 @@ async function tryApiInsert(payload, createdAt) {
         String(payload.endpoint || ''),
         String(payload.environment || 'QA'),
         false,
+        JSON.stringify(tagsFromString),
+        sampleRequestJson,
+        sampleResponseJson,
         createdAt,
         updatedAt,
       ],
@@ -139,11 +156,13 @@ async function tryApiInsert(payload, createdAt) {
         INSERT INTO apis (
           name, desc, endpoint, domain, type, version, lifecycle,
           tags_json, owner, consumers, test_tool, artifacts_json,
-          calls, latency, error_rate, error_level, trend, trend_level, created_at
+          calls, latency, error_rate, error_level, trend, trend_level,
+          sample_request, sample_response, created_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7,
           $8::jsonb, $9, $10, $11, $12::jsonb,
-          $13, $14, $15, $16, $17, $18, $19
+          $13, $14, $15, $16, $17, $18,
+          $19::jsonb, $20::jsonb, $21
         )
         RETURNING *
       `,
@@ -155,7 +174,7 @@ async function tryApiInsert(payload, createdAt) {
         String(payload.type),
         String(payload.version || 'v1.0.0'),
         payload.lifecycle || null,
-        JSON.stringify(payload.tags || []),
+        JSON.stringify(tagsFromString),
         String(payload.owner),
         Number(payload.consumers || 0),
         String(payload.testTool || 'Swagger'),
@@ -166,6 +185,8 @@ async function tryApiInsert(payload, createdAt) {
         String(payload.errorLevel || 'muted'),
         String(payload.trend || 'new'),
         String(payload.trendLevel || 'muted'),
+        sampleRequestJson,
+        sampleResponseJson,
         createdAt,
       ],
     },
@@ -195,37 +216,54 @@ function formatDownloadRow(row) {
 
 async function ensureSchema() {
   await query(`SET search_path TO ${DB_SCHEMA}`)
-  
-  // Add tags_json column if it doesn't exist
+
   try {
     await query(`
-      ALTER TABLE apis 
+      ALTER TABLE apis
       ADD COLUMN IF NOT EXISTS tags_json jsonb DEFAULT '[]'::jsonb
     `)
     console.log('✓ Ensured tags_json column exists')
   } catch (error) {
     console.log('tags_json column already exists or error:', error.message)
   }
+
+  try {
+    await query(`
+      ALTER TABLE apis
+      ADD COLUMN IF NOT EXISTS sample_request jsonb,
+      ADD COLUMN IF NOT EXISTS sample_response jsonb
+    `)
+    console.log('✓ Ensured sample_request / sample_response columns exist')
+  } catch (error) {
+    console.log('sample payload columns already exist or error:', error.message)
+  }
 }
 
 async function seedDatabase() {
   await ensureSchema()
 
-  const existing = await query('SELECT tags_json FROM apis LIMIT 1')
-  
-  if (existing.rows.length > 0) {
-    const tagsJson = existing.rows[0].tags_json
-    // Check if tags_json has real tag data (not empty array or null)
-    const hasRealTags = tagsJson && Array.isArray(tagsJson) && tagsJson.length > 0
-    
-    if (hasRealTags) {
-      console.log('Database already seeded with API data (including tags).')
-      return
-    }
-    
-    console.log('Database has API data but missing tags. Clearing and re-seeding...')
+  const countRow = await query('SELECT COUNT(*)::int AS cnt FROM apis')
+  const currentCount = countRow.rows[0]?.cnt ?? 0
+
+  // Always reseed if count doesn't match (data changed)
+  if (currentCount !== seedApis.length) {
+    console.log(
+      `Seed data changed (DB has ${currentCount}, seed has ${seedApis.length}) — clearing and re-seeding...`,
+    )
     await query('DELETE FROM downloads')
     await query('DELETE FROM apis')
+  } else {
+    // Spot check: verify one API has matching lifecycle
+    const lastApi = seedApis[seedApis.length - 1]
+    const check = await query('SELECT lifecycle FROM apis WHERE name = $1 LIMIT 1', [lastApi.name])
+    if (check.rows[0]?.lifecycle !== lastApi.lifecycle) {
+      console.log(`Lifecycle changed for ${lastApi.name} — clearing and re-seeding...`)
+      await query('DELETE FROM downloads')
+      await query('DELETE FROM apis')
+    } else {
+      console.log(`Database already seeded (${currentCount} APIs match).`)
+      return
+    }
   }
 
   console.log('Seeding database with sample API data...')
@@ -237,16 +275,20 @@ async function seedDatabase() {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
 
+      const payload = samplePayloads[api.name] || {}
+
       await query(
         `
         INSERT INTO apis (
           api_id, name, version, lifecycle, type, description,
           owner, consumers, status, published, endpoint,
-          environment, restricted, tags_json, created_at, updated_at
+          environment, restricted, tags_json, sample_request, sample_response,
+          created_at, updated_at
         ) VALUES (
           $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10, $11,
-          $12, $13, $14, $15, $16
+          $12, $13, $14, $15::jsonb, $16::jsonb,
+          $17, $18
         )
         `,
         [
@@ -264,9 +306,11 @@ async function seedDatabase() {
           'Production',
           false,
           JSON.stringify(api.tags || []),
+          payload.request ? JSON.stringify(payload.request) : null,
+          payload.response ? JSON.stringify(payload.response) : null,
           new Date().toISOString(),
           new Date().toISOString(),
-        ]
+        ],
       )
       console.log(`✓ Seeded: ${api.name}`)
     } catch (error) {

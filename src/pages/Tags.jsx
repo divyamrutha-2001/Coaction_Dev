@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '../services/apiClient'
 
 const categories = [
-  { title: 'Business Domain', chips: ['Policy', 'Claims', 'Billing', 'Submission'] },
-  { title: 'Technical Type', chips: ['REST', 'SOAP', 'Internal'] },
+  { title: 'Business Domain', chips: ['Submissions', 'Underwriting', 'Policy', 'Claims', 'Data Services'] },
+  { title: 'Technical Type', chips: ['REST', 'ACORD', 'PII'] },
   { title: 'Lifecycle', chips: ['Published', 'Beta', 'Deprecated', 'Draft'] },
   { title: 'Security Level', chips: ['Public', 'Internal-Only', 'Confidential'] },
 ]
@@ -39,7 +39,7 @@ export default function Tags() {
       <div className="card-base p-6">
         <h2 className="text-2xl font-semibold mb-6">APIs by Domain</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {['Policy', 'Claims', 'Billing', 'Submission'].map((domain) => {
+          {['Submissions', 'Underwriting', 'Policy', 'Claims', 'Data Services'].map((domain) => {
             const domainApis = apis.filter((a) => a.domain === domain)
             return (
               <div key={domain}>

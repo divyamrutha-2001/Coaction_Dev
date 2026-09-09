@@ -10,6 +10,8 @@ import Download from './pages/Download'
 import Tags from './pages/Tags'
 import Access from './pages/Access'
 import Usage from './pages/Usage'
+import PolicyTrace from './pages/PolicyTrace'
+import Direction2Demo from './pages/Direction2Demo'
 
 const queryClient = new QueryClient()
 
@@ -37,6 +39,8 @@ export default function App() {
                 <Route path="/tags" element={<Tags />} />
                 <Route path="/access" element={<Access />} />
                 <Route path="/usage" element={<Usage />} />
+                <Route path="/trace" element={<PolicyTrace />} />
+                <Route path="/direction2" element={<Direction2Demo />} />
               </Routes>
             </main>
           </div>
