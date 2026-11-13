@@ -32,7 +32,11 @@ DB_NAME=your-database-name
 DB_USER=your-db-user
 DB_PASSWORD=your-db-password
 DB_SCHEMA=public
+API_TEST_BASE_URL=http://localhost:8787/mock-api
+API_TEST_TIMEOUT_MS=10000
 ```
+
+`API_TEST_BASE_URL` is the default upstream used by the API Library Try It proxy. Set environment-specific values such as `API_TEST_QA_BASE_URL` or `API_TEST_PRODUCTION_BASE_URL` when you want Express to call real non-prod or production API gateways. If no real target is configured, the backend uses its local `/mock-api/*` upstream so Try It still performs an actual server-to-server request.
 
 ## Build For Production
 
@@ -76,6 +80,26 @@ npm run preview
 | POST | `/api/apis` | Create a new API |
 | GET | `/api/downloads` | List recent downloads |
 | POST | `/api/downloads` | Record a download |
+| POST | `/api/test-run` | Execute an API Library Try It request through the backend proxy and log the call |
+| GET | `/api/usage/summary` | Real call totals, error count, average latency, unique consumers, and catalog counts |
+| GET | `/api/usage/timeseries` | Daily call and error counts with zero-filled gaps |
+| GET | `/api/usage/top-consumers` | Highest-volume consumers by recorded call count |
+| POST | `/api/v1/submissions` | Create a submission record in `workbench_submissions` and return the generated submission ID |
+| GET | `/api/v1/submissions/{id}/status` | Current submission status, underwriter, and priority |
+| POST | `/api/v1/submissions/{id}/documents` | Register a submission document |
+| POST | `/api/v1/underwriting/appetite` | Appetite decision, score, and referral reasons (compute only) |
+| POST | `/api/v1/underwriting/risk-score` | Risk score, tier, recommendation, and factors (compute only) |
+| POST | `/api/v1/quotes` | Create a quote with calculated premium, taxes, and total |
+| POST | `/api/v1/quotes/{id}/bind` | Bind a quote and create the resulting policy |
+| GET | `/api/v1/policies/{policyNumber}` | Policy header, term, status, and written premium |
+| GET | `/api/v1/policies/{policyNumber}/exposures` | Location-level exposures for a policy |
+| POST | `/api/v1/claims/fnol` | Create a claim from First Notice of Loss |
+| GET | `/api/v1/claims/{claimNumber}/status` | Claim status, stage, adjuster, and total incurred |
+| POST | `/api/v1/claims/{claimNumber}/reserves` | Post a reserve transaction and update the claim balance |
+| POST | `/api/v1/claims/{claimNumber}/payments` | Record a payment and move money from reserve to paid |
+| GET | `/api/v1/accounts/{accountId}/loss-runs` | Historical claims and loss experience for an account |
+| GET | `/api/v1/reference/class-codes` | Governed class codes, filterable by `lineOfBusiness` and `state` |
+| ANY | `/mock-api/*` | Local dummy upstream used by Try It when no real target base URL is configured |
 
 ## Project Log
 

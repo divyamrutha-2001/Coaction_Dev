@@ -1,0 +1,239 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Claim Reserve API",
+    "version": "v1.0",
+    "description": "Posts a reserve transaction and returns the updated reserve balance.",
+    "x-domain": "Claims Management",
+    "x-owner": "Claims Management Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 1,
+    "x-document": {
+      "purpose": "Posts a reserve transaction and returns the updated reserve balance.",
+      "whenToUse": "Use this to post a claim reserve adjustment.",
+      "notes": [
+        "Reserve changes should be audited.",
+        "Reason is important for financial review."
+      ],
+      "errors": [
+        "Invalid reserve type",
+        "Claim not open",
+        "Amount exceeds authority"
+      ],
+      "owner": "Claims Management Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Posts a reserve transaction and returns the updated reserve balance.",
+        "evaluates": [
+          "POST /api/v1/claims/{claimNumber}/reserves"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Developer": {
+        "summary": "Posts a reserve transaction and returns the updated reserve balance.",
+        "evaluates": [
+          "POST /api/v1/claims/{claimNumber}/reserves"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Partner": {
+        "summary": "Posts a reserve transaction and returns the updated reserve balance.",
+        "evaluates": [
+          "POST /api/v1/claims/{claimNumber}/reserves"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "claimNumber",
+          "type": "string",
+          "required": true,
+          "description": "claimNumber path parameter used to identify the target resource.",
+          "example": "CLM-2026-45021"
+        }
+      ],
+      "request": [
+        {
+          "name": "reserveType",
+          "type": "string",
+          "required": true,
+          "description": "Reserve category being adjusted.",
+          "example": "INDEMNITY"
+        },
+        {
+          "name": "transactionType",
+          "type": "string",
+          "required": true,
+          "description": "Type of reserve transaction being requested.",
+          "example": "INCREASE"
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "required": true,
+          "description": "Value for amount.",
+          "example": "50000"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "required": true,
+          "description": "Value for reason.",
+          "example": "Updated medical evaluation"
+        }
+      ],
+      "response": [
+        {
+          "name": "transactionId",
+          "type": "string",
+          "required": true,
+          "description": "Identifier for a posted reserve or financial transaction.",
+          "example": "RSV-90021"
+        },
+        {
+          "name": "previousReserve",
+          "type": "integer",
+          "required": true,
+          "description": "Reserve amount before the transaction is posted.",
+          "example": "75000"
+        },
+        {
+          "name": "newReserve",
+          "type": "integer",
+          "required": true,
+          "description": "Reserve amount after the transaction is posted.",
+          "example": "125000"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "POSTED"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/claims/{claimNumber}/reserves": {
+      "post": {
+        "operationId": "claim-reserve-api",
+        "summary": "Posts a reserve transaction and returns the updated reserve balance.",
+        "tags": [
+          "Production",
+          "REST",
+          "Claims Management"
+        ],
+        "parameters": [
+          {
+            "name": "claimNumber",
+            "in": "path",
+            "required": true,
+            "description": "claimNumber identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "CLM-2026-45021"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Use this to post a claim reserve adjustment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transactionId": {
+                      "type": "string",
+                      "example": "RSV-90021"
+                    },
+                    "previousReserve": {
+                      "type": "integer",
+                      "example": 75000
+                    },
+                    "newReserve": {
+                      "type": "integer",
+                      "example": 125000
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "POSTED"
+                    }
+                  },
+                  "required": [
+                    "transactionId",
+                    "previousReserve",
+                    "newReserve",
+                    "status"
+                  ]
+                },
+                "example": {
+                  "transactionId": "RSV-90021",
+                  "previousReserve": 75000,
+                  "newReserve": 125000,
+                  "status": "POSTED"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reserveType": {
+                    "type": "string",
+                    "example": "INDEMNITY"
+                  },
+                  "transactionType": {
+                    "type": "string",
+                    "example": "INCREASE"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "example": 50000
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "Updated medical evaluation"
+                  }
+                },
+                "required": [
+                  "reserveType",
+                  "transactionType",
+                  "amount",
+                  "reason"
+                ]
+              },
+              "example": {
+                "reserveType": "INDEMNITY",
+                "transactionType": "INCREASE",
+                "amount": 50000,
+                "reason": "Updated medical evaluation"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

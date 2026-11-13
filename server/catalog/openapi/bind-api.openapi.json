@@ -1,0 +1,218 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Bind API",
+    "version": "v1.0",
+    "description": "Binds an accepted quote and returns the resulting policy number.",
+    "x-domain": "Policy Administration",
+    "x-owner": "Policy Administration Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 2,
+    "x-document": {
+      "purpose": "Binds an accepted quote and returns the resulting policy number.",
+      "whenToUse": "Use this to convert an accepted quote into a bound policy.",
+      "notes": [
+        "Binding is a business-critical write action.",
+        "Confirm quote authority and payment plan before calling."
+      ],
+      "errors": [
+        "Quote ID not found",
+        "Quote expired",
+        "User not authorized to bind"
+      ],
+      "owner": "Policy Administration Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Binds an accepted quote and issues a policy.",
+        "evaluates": [
+          "Quote ID and status",
+          "Quote expiration"
+        ],
+        "returns": [
+          "Policy number",
+          "Effective and expiration dates"
+        ]
+      },
+      "Developer": {
+        "summary": "Transitions a quote to a bound policy. Returns 409 if quote expired or already bound.",
+        "evaluates": [
+          "Quote exists and is in Quoted state",
+          "No concurrent bind attempts (idempotency key)"
+        ],
+        "returns": [
+          "HTTP 200 with policy object",
+          "Policy number in response"
+        ]
+      },
+      "Partner": {
+        "summary": "Accept a quote to bind it. Get back a policy number and effective date.",
+        "evaluates": [
+          "Quote ID"
+        ],
+        "returns": [
+          "Policy number",
+          "Start and end dates"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "id path parameter used to identify the target resource.",
+          "example": "SUB-2026-10452"
+        }
+      ],
+      "request": [
+        {
+          "name": "bindRequestedBy",
+          "type": "string",
+          "required": true,
+          "description": "User or broker email requesting the bind action.",
+          "example": "broker@abc.com"
+        },
+        {
+          "name": "bindDate",
+          "type": "date string",
+          "required": true,
+          "description": "Requested date for binding the quote into a policy.",
+          "example": "2026-09-10"
+        },
+        {
+          "name": "paymentPlan",
+          "type": "string",
+          "required": true,
+          "description": "Payment plan selected for the bound policy.",
+          "example": "QUARTERLY"
+        }
+      ],
+      "response": [
+        {
+          "name": "policyNumber",
+          "type": "string",
+          "required": true,
+          "description": "Policy identifier assigned by the policy administration system.",
+          "example": "POL-2026-98765"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "BOUND"
+        },
+        {
+          "name": "effectiveDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the policy, quote, or bind action becomes effective.",
+          "example": "2026-10-01"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/quotes/{id}/bind": {
+      "post": {
+        "operationId": "bind-api",
+        "summary": "Binds an accepted quote and returns the resulting policy number.",
+        "tags": [
+          "Production",
+          "REST",
+          "Policy Administration"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "id identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "SUB-2026-10452"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Use this to convert an accepted quote into a bound policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "policyNumber": {
+                      "type": "string",
+                      "example": "POL-2026-98765"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "BOUND"
+                    },
+                    "effectiveDate": {
+                      "type": "string",
+                      "example": "2026-10-01"
+                    }
+                  },
+                  "required": [
+                    "policyNumber",
+                    "status",
+                    "effectiveDate"
+                  ]
+                },
+                "example": {
+                  "policyNumber": "POL-2026-98765",
+                  "status": "BOUND",
+                  "effectiveDate": "2026-10-01"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bindRequestedBy": {
+                    "type": "string",
+                    "example": "broker@abc.com"
+                  },
+                  "bindDate": {
+                    "type": "string",
+                    "example": "2026-09-10"
+                  },
+                  "paymentPlan": {
+                    "type": "string",
+                    "example": "QUARTERLY"
+                  }
+                },
+                "required": [
+                  "bindRequestedBy",
+                  "bindDate",
+                  "paymentPlan"
+                ]
+              },
+              "example": {
+                "bindRequestedBy": "broker@abc.com",
+                "bindDate": "2026-09-10",
+                "paymentPlan": "QUARTERLY"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

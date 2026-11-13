@@ -1,0 +1,247 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Create Submission API",
+    "version": "v1.0",
+    "description": "Creates a new broker or MGA submission and returns the carrier submission identifier.",
+    "x-domain": "Underwriting & Submissions",
+    "x-owner": "Underwriting & Submissions Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 4,
+    "x-document": {
+      "purpose": "Creates a new broker or MGA submission and returns the carrier submission identifier.",
+      "whenToUse": "Use this when a broker, MGA, or intake workflow needs to create a new submission for underwriting review.",
+      "notes": [
+        "Validate broker and insured information before sending.",
+        "Use the returned submission ID for later status, document, appetite, risk, quote, and bind calls."
+      ],
+      "errors": [
+        "Missing broker or insured information",
+        "Unsupported state or line of business",
+        "Invalid effective date"
+      ],
+      "owner": "Underwriting & Submissions Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Creates a new broker or MGA submission and returns the carrier submission identifier.",
+        "evaluates": [
+          "Broker and MGA information",
+          "Insured name, address, and contact",
+          "Line of business and coverage requested"
+        ],
+        "returns": [
+          "New submission ID",
+          "Submission status and timestamp"
+        ]
+      },
+      "Developer": {
+        "summary": "Accepts a submission JSON and returns a 201 with the new submission record and ID. Validates schema and required fields.",
+        "evaluates": [
+          "Request body JSON schema",
+          "Required fields (insured, broker, lob)",
+          "Auth and idempotency key header"
+        ],
+        "returns": [
+          "HTTP 201 with submission object",
+          "Location header with submission URI"
+        ]
+      },
+      "Partner": {
+        "summary": "Submit a new submission with insured and coverage details. Get back a submission ID.",
+        "evaluates": [
+          "Insured information",
+          "Coverage and line of business"
+        ],
+        "returns": [
+          "Submission ID",
+          "Status confirmation"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [],
+      "request": [
+        {
+          "name": "brokerId",
+          "type": "string",
+          "required": true,
+          "description": "Broker or MGA identifier submitting the account.",
+          "example": "BRK-10021"
+        },
+        {
+          "name": "insuredName",
+          "type": "string",
+          "required": true,
+          "description": "Named insured business or account name.",
+          "example": "Acme Manufacturing Inc."
+        },
+        {
+          "name": "lineOfBusiness",
+          "type": "string",
+          "required": true,
+          "description": "Insurance line of business for the request or response.",
+          "example": "General Liability"
+        },
+        {
+          "name": "effectiveDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the policy, quote, or bind action becomes effective.",
+          "example": "2026-10-01"
+        },
+        {
+          "name": "annualRevenue",
+          "type": "integer",
+          "required": false,
+          "description": "Annual business revenue used for underwriting and appetite decisions.",
+          "example": "25000000"
+        },
+        {
+          "name": "states",
+          "type": "string[]",
+          "required": true,
+          "description": "States where coverage is requested or applies.",
+          "example": "[\"NJ\",\"NY\",\"PA\"]"
+        }
+      ],
+      "response": [
+        {
+          "name": "submissionId",
+          "type": "string",
+          "required": true,
+          "description": "Submission identifier assigned by the submissions system.",
+          "example": "SUB-2026-10452"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "RECEIVED"
+        },
+        {
+          "name": "createdDate",
+          "type": "date-time string",
+          "required": true,
+          "description": "Value for createdDate.",
+          "example": "2026-08-17T13:30:00Z"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/submissions": {
+      "post": {
+        "operationId": "create-submission-api",
+        "summary": "Creates a new broker or MGA submission and returns the carrier submission identifier.",
+        "tags": [
+          "Production",
+          "REST",
+          "ACORD"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Use this when a broker, MGA, or intake workflow needs to create a new submission for underwriting review.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "submissionId": {
+                      "type": "string",
+                      "example": "SUB-2026-10452"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "RECEIVED"
+                    },
+                    "createdDate": {
+                      "type": "string",
+                      "example": "2026-08-17T13:30:00Z"
+                    }
+                  },
+                  "required": [
+                    "submissionId",
+                    "status",
+                    "createdDate"
+                  ]
+                },
+                "example": {
+                  "submissionId": "SUB-2026-10452",
+                  "status": "RECEIVED",
+                  "createdDate": "2026-08-17T13:30:00Z"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "brokerId": {
+                    "type": "string",
+                    "example": "BRK-10021"
+                  },
+                  "insuredName": {
+                    "type": "string",
+                    "example": "Acme Manufacturing Inc."
+                  },
+                  "lineOfBusiness": {
+                    "type": "string",
+                    "example": "General Liability"
+                  },
+                  "effectiveDate": {
+                    "type": "string",
+                    "example": "2026-10-01"
+                  },
+                  "annualRevenue": {
+                    "type": "integer",
+                    "example": 25000000
+                  },
+                  "states": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "example": "NJ"
+                    }
+                  }
+                },
+                "required": [
+                  "brokerId",
+                  "insuredName",
+                  "lineOfBusiness",
+                  "effectiveDate",
+                  "states"
+                ]
+              },
+              "example": {
+                "brokerId": "BRK-10021",
+                "insuredName": "Acme Manufacturing Inc.",
+                "lineOfBusiness": "General Liability",
+                "effectiveDate": "2026-10-01",
+                "annualRevenue": 25000000,
+                "states": [
+                  "NJ",
+                  "NY",
+                  "PA"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

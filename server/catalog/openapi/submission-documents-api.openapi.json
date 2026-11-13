@@ -1,0 +1,234 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Submission Documents API",
+    "version": "v1.0",
+    "description": "Registers submission documents such as applications, SOVs, schedules and loss runs.",
+    "x-domain": "Underwriting & Submissions",
+    "x-owner": "Underwriting & Submissions Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 1,
+    "x-document": {
+      "purpose": "Registers submission documents such as applications, SOVs, schedules and loss runs.",
+      "whenToUse": "Use this to register loss runs, applications, schedules, or other supporting submission documents.",
+      "notes": [
+        "Document extraction may continue asynchronously after upload.",
+        "Store the returned document ID for downstream processing."
+      ],
+      "errors": [
+        "Unsupported document type",
+        "Missing file name",
+        "Submission ID not found"
+      ],
+      "owner": "Underwriting & Submissions Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Registers submission documents such as applications, SOVs, schedules and loss runs.",
+        "evaluates": [
+          "Submission ID",
+          "Document type (application, schedule, loss run)",
+          "File and metadata"
+        ],
+        "returns": [
+          "Document ID",
+          "Upload confirmation and timestamp"
+        ]
+      },
+      "Developer": {
+        "summary": "Uploads a document attachment to a submission. Returns 201 on success. Supports multipart/form-data.",
+        "evaluates": [
+          "Submission exists and is not closed",
+          "File size and mime type",
+          "Authorization scope for document upload"
+        ],
+        "returns": [
+          "HTTP 201 with document metadata",
+          "Document ID and storage reference"
+        ]
+      },
+      "Partner": {
+        "summary": "Upload documents (applications, schedules) to a submission.",
+        "evaluates": [
+          "Submission ID",
+          "Document file and metadata"
+        ],
+        "returns": [
+          "Document ID",
+          "Confirmation"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "id path parameter used to identify the target resource.",
+          "example": "SUB-2026-10452"
+        }
+      ],
+      "request": [
+        {
+          "name": "documentType",
+          "type": "string",
+          "required": true,
+          "description": "Type of document being registered.",
+          "example": "LOSS_RUN"
+        },
+        {
+          "name": "fileName",
+          "type": "string",
+          "required": true,
+          "description": "File name of the document being registered.",
+          "example": "Acme_Loss_Run_2026.pdf"
+        },
+        {
+          "name": "documentDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date associated with the uploaded document.",
+          "example": "2026-08-15"
+        },
+        {
+          "name": "source",
+          "type": "string",
+          "required": true,
+          "description": "Source system or channel submitting the record.",
+          "example": "BROKER_PORTAL"
+        }
+      ],
+      "response": [
+        {
+          "name": "documentId",
+          "type": "string",
+          "required": true,
+          "description": "Document identifier returned after registration.",
+          "example": "DOC-78931"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "UPLOADED"
+        },
+        {
+          "name": "extractionStatus",
+          "type": "string",
+          "required": true,
+          "description": "Document extraction or processing status.",
+          "example": "PROCESSING"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/submissions/{id}/documents": {
+      "post": {
+        "operationId": "submission-documents-api",
+        "summary": "Registers submission documents such as applications, SOVs, schedules and loss runs.",
+        "tags": [
+          "Production",
+          "REST",
+          "PII"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "id identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "SUB-2026-10452"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Use this to register loss runs, applications, schedules, or other supporting submission documents.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "documentId": {
+                      "type": "string",
+                      "example": "DOC-78931"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "UPLOADED"
+                    },
+                    "extractionStatus": {
+                      "type": "string",
+                      "example": "PROCESSING"
+                    }
+                  },
+                  "required": [
+                    "documentId",
+                    "status",
+                    "extractionStatus"
+                  ]
+                },
+                "example": {
+                  "documentId": "DOC-78931",
+                  "status": "UPLOADED",
+                  "extractionStatus": "PROCESSING"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "documentType": {
+                    "type": "string",
+                    "example": "LOSS_RUN"
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "example": "Acme_Loss_Run_2026.pdf"
+                  },
+                  "documentDate": {
+                    "type": "string",
+                    "example": "2026-08-15"
+                  },
+                  "source": {
+                    "type": "string",
+                    "example": "BROKER_PORTAL"
+                  }
+                },
+                "required": [
+                  "documentType",
+                  "fileName",
+                  "documentDate",
+                  "source"
+                ]
+              },
+              "example": {
+                "documentType": "LOSS_RUN",
+                "fileName": "Acme_Loss_Run_2026.pdf",
+                "documentDate": "2026-08-15",
+                "source": "BROKER_PORTAL"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

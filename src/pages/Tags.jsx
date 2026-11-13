@@ -1,82 +1,78 @@
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { apiClient } from '../services/apiClient'
+import { api } from '../api/client.js'
+import { DataTable, EmptyState, ErrorState, LoadingState, MetricCard, PageHeader, SearchField, SegmentedControl, StatusBadge, useNarrow } from '../components/ui.jsx'
 
-const categories = [
-  { title: 'Business Domain', chips: ['Submissions', 'Underwriting', 'Policy', 'Claims', 'Data Services'] },
-  { title: 'Technical Type', chips: ['REST', 'ACORD', 'PII'] },
-  { title: 'Lifecycle', chips: ['Published', 'Beta', 'Deprecated', 'Draft'] },
-  { title: 'Security Level', chips: ['Public', 'Internal-Only', 'Confidential'] },
-]
+const categoryTone = {
+  Security: 'danger',
+  Lifecycle: 'warning',
+  'Technical Type': 'success',
+  'Business Domain': 'info',
+  Environment: 'neutral',
+}
 
 export default function Tags() {
-  const { data: apis = [] } = useQuery({
-    queryKey: ['apis'],
-    queryFn: () => apiClient.getApis(),
+  const tags = useQuery({ queryKey: ['tags'], queryFn: api.tags })
+  const [category, setCategory] = useState('All')
+  const [query, setQuery] = useState('')
+  const narrow = useNarrow()
+  const categories = useMemo(() => ['All', ...new Set((tags.data || []).map((tag) => tag.category))], [tags.data])
+  const visible = (tags.data || []).filter((tag) => {
+    const matchesCategory = category === 'All' || tag.category === category
+    const haystack = `${tag.tag} ${tag.description} ${tag.owner}`.toLowerCase()
+    return matchesCategory && haystack.includes(query.toLowerCase())
   })
 
+  if (tags.isLoading) return <LoadingState label="Loading tags" />
+  if (tags.isError) return <ErrorState title="Unable to load tags" onRetry={() => tags.refetch()} />
+
+  const assignments = tags.data.reduce((sum, tag) => sum + tag.count, 0)
+  const covered = new Set(tags.data.flatMap((tag) => tag.apis)).size
+  const owners = new Set(tags.data.map((tag) => tag.owner)).size
+
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Context Tags & Metadata</h1>
-        <p className="text-muted">Organize and discover APIs by business and technical tags</p>
+    <div className="flex min-w-0 flex-col gap-5">
+      <PageHeader eyebrow="Metadata governance" title="Context Tags" description="Governance labels used to classify APIs by domain, security, lifecycle, and environment." />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Assignments" value={assignments} hint="Tag uses across the catalog" />
+        <MetricCard label="Categories" value={categories.length - 1} hint="Distinct tag groups" />
+        <MetricCard label="Owners" value={owners} hint="Teams responsible for a tag" />
+        <MetricCard label="Covered APIs" value={covered} hint="APIs with at least one tag" />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {categories.map((cat) => (
-          <div key={cat.title} className="card-base p-6">
-            <h3 className="font-semibold mb-4">{cat.title}</h3>
-            <div className="flex flex-wrap gap-2">
-              {cat.chips.map((chip) => (
-                <span key={chip} className="badge badge-primary text-xs">
-                  {chip}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <SearchField id="tag-search" label="Search tags" value={query} onChange={setQuery} placeholder="Tag, owner, or description" />
+        <SegmentedControl label="Category" value={category} onChange={setCategory} options={categories.map((value) => ({ value, label: value }))} />
       </div>
-
-      <div className="card-base p-6">
-        <h2 className="text-2xl font-semibold mb-6">APIs by Domain</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {['Submissions', 'Underwriting', 'Policy', 'Claims', 'Data Services'].map((domain) => {
-            const domainApis = apis.filter((a) => a.domain === domain)
-            return (
-              <div key={domain}>
-                <h3 className="font-semibold mb-3">{domain}</h3>
-                <div className="space-y-2">
-                  {domainApis.map((api) => (
-                    <div key={api.id} className="p-2 rounded bg-muted/50 text-sm">
-                      {api.name}
-                    </div>
-                  ))}
+      <div className="min-w-0">
+        {visible.length === 0 ? (
+          <EmptyState title="No tags match" description="Try another category or a shorter search." />
+        ) : narrow ? (
+          <div className="grid gap-2">
+            {visible.map((tag) => (
+              <div key={tag.tag} className="rounded-lg border border-line bg-surface p-3 text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <StatusBadge tone={categoryTone[tag.category]}>{tag.tag}</StatusBadge>
+                  <span className="text-sm font-bold">{tag.count}</span>
                 </div>
+                <p className="mt-2 text-xs text-ink-muted">{tag.category} · {tag.owner}</p>
+                <p className="mt-1 text-sm">{tag.description}</p>
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="card-base p-6">
-        <h2 className="text-2xl font-semibold mb-4">Indexing Statistics</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-primary">{apis.length}</p>
-            <p className="text-sm text-muted">APIs Indexed</p>
+            ))}
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-accent">{apis.length * 26}</p>
-            <p className="text-sm text-muted">Endpoints Indexed</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-primary">{apis.length * 1.3}</p>
-            <p className="text-sm text-muted">Schemas Indexed</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-accent">{apis.length * 4}</p>
-            <p className="text-sm text-muted">Docs & Release Notes</p>
-          </div>
-        </div>
+        ) : (
+          <DataTable
+            rows={visible}
+            getRowKey={(tag) => tag.tag}
+            minWidth="720px"
+            columns={[
+              { key: 'tag', header: 'Tag', render: (tag) => <span className="font-bold">{tag.tag}</span> },
+              { key: 'category', header: 'Category', render: (tag) => <StatusBadge tone={categoryTone[tag.category]}>{tag.category}</StatusBadge> },
+              { key: 'owner', header: 'Owner', render: (tag) => tag.owner },
+              { key: 'count', header: 'APIs', render: (tag) => tag.count },
+              { key: 'description', header: 'Description', render: (tag) => tag.description },
+            ]}
+          />
+        )}
       </div>
     </div>
   )

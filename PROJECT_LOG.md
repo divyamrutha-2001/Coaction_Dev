@@ -1,305 +1,174 @@
-# CoAction Developer Workbench — Project Log
+# CoAction Developer Workbench Project Log
 
-> A living record of the project's architecture, features, and every change made over time.
-> **Convention:** Every time we do meaningful work (add a feature, fix a bug, change config,
-> deploy, etc.), add a dated entry to the [Change Log](#change-log) at the bottom of this file.
-
-- **Last updated:** 2026-09-09
-- **Repository:** https://github.com/divyamrutha-2001/Coaction_Dev
-- **App folder:** `coaction-developer-workbench-react/`
-
----
-
-## 1. Overview
-
-The CoAction Developer Workbench is an internal **API developer portal** for a P&C
-(Property & Casualty) insurance company. It lets teams discover, publish, document, and
-monitor internal APIs. It is a single-page React app backed by an Express API that reads and
-writes to a PostgreSQL database.
-
-The app is a React + Vite port of an earlier static HTML prototype.
-
----
-
-## 2. Tech Stack
-
-### Frontend
-- **React 18.3** + **Vite 5.4** (SPA)
-- **react-router-dom 7** — client-side routing
-- **@tanstack/react-query 5** — server state / data fetching & caching
-- **recharts** — dashboard & usage charts
-- **lucide-react** — icons
-- **Tailwind CSS 4** (+ `@tailwindcss/postcss`, `autoprefixer`, `tailwindcss-animate`)
-- **next-themes** — light/dark theme provider
-- **react-hook-form** + **zod** (`@hookform/resolvers`) — forms & validation
-- **Radix UI** primitives (dialog, dropdown, select, tabs, toast, accordion, label, slot)
-- **ag-grid-react** — data grid
-- **sonner** — toast notifications
-- **axios** — HTTP (available; app currently uses `fetch` in `apiClient.js`)
-
-### Backend
-- **Node.js** (ESM, `"type": "module"`)
-- **Express 4** — HTTP API
-- **pg** — PostgreSQL driver
-- **dotenv** — environment config
-- **cors** — cross-origin support
-
-### Deployment / Ops
-- **IIS** with URL Rewrite (`web.config`) as reverse proxy + SPA host
-- **PM2** (`ecosystem.config.cjs`) for the backend process
-- **node-windows** (`install-service.cjs`) to run the backend as a Windows Service
-
----
-
-## 3. How to Run
-
-From the `coaction-developer-workbench-react/` folder:
-
-```powershell
-npm install
-```
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Start Vite dev server (usually http://localhost:5173) |
-| `npm run server` | Start the Express backend on port 8787 |
-| `npm run dev:full` | Run frontend + backend together (via `concurrently`) |
-| `npm run build` | Build the production frontend into `dist/` |
-| `npm run preview` | Preview the production build |
-
-Helper scripts:
-- `start-workbench.ps1 -Mode dev|server|full` — convenience launcher
-- `deploy-backend.ps1 -FrontendPath <path>` — `npm ci`, build, publish `dist/`, start PM2
-
-> **Note:** The dev server proxies `/api` → `http://localhost:8787`, so the backend must be
-> running for data to load in development.
-
----
-
-## 4. Architecture
-
-```mermaid
-flowchart LR
-    Browser["Browser (React SPA)"] -->|/api/*| Proxy["Vite proxy (dev) / IIS rewrite (prod)"]
-    Proxy --> Express["Express backend :8787"]
-    Express --> PG[("PostgreSQL")]
-    Express -. seeds from .-> Seed["src/data/apis.js + samplePayloads.js"]
-```
-
-- In **development**, Vite proxies `/api` to the backend.
-- In **production**, IIS rewrites `^api/(.*)` to `http://localhost:8787/api/{R:1}` and serves
-  the built SPA with a fallback to `index.html`.
-
----
-
-## 5. Project Structure
-
-```
-coaction-developer-workbench-react/
-├─ index.html                     # SPA entry HTML
-├─ package.json                   # scripts & dependencies
-├─ vite.config.js                 # Vite + React plugin + /api proxy
-├─ tailwind.config.js             # Tailwind config
-├─ postcss.config.js              # PostCSS config
-├─ web.config                     # IIS URL Rewrite (proxy + SPA fallback)
-├─ ecosystem.config.cjs           # PM2 process config
-├─ install-service.cjs            # node-windows service installer
-├─ deploy-backend.ps1             # build + publish + PM2 deploy script
-├─ start-workbench.ps1            # dev/server/full launcher
-├─ .env / .env.example            # DB + server configuration
-├─ backend/
-│  ├─ server.js                   # Express API + DB seeding
-│  ├─ daemon/                     # Windows service artifacts
-│  └─ data/                       # backend data dir
-├─ iis-deploy-bundle/             # prebuilt frontend bundle for IIS
-└─ src/
-   ├─ main.jsx                    # React entry (StrictMode)
-   ├─ App.jsx                     # Router + providers
-   ├─ index.css                   # global / Tailwind styles
-   ├─ assets/                     # logo, images
-   ├─ components/
-   │  ├─ TopNav.jsx               # top navigation bar
-   │  ├─ ExplainChip.jsx          # AI "Explain" chip (audience-aware)
-   │  └─ EndpointListView.jsx     # per-operation accordion + explain
-   ├─ data/
-   │  ├─ apis.js                  # 15 seed APIs (mock catalog)
-   │  ├─ explanations.js          # seed explanations by "METHOD /path" x audience
-   │  └─ samplePayloads.js        # sample request/response bodies per API
-   ├─ pages/
-   │  ├─ Dashboard.jsx
-   │  ├─ ApiLibrary.jsx
-   │  ├─ Upload.jsx
-   │  ├─ Download.jsx
-   │  ├─ Tags.jsx
-   │  ├─ Access.jsx
-   │  ├─ Usage.jsx
-   │  ├─ PolicyTrace.jsx
-   │  └─ Direction2Demo.jsx
-   └─ services/
-      └─ apiClient.js             # fetch wrapper for the backend
-```
-
----
-
-## 6. Frontend
-
-### Routing (`src/App.jsx`)
-Wraps the app in `ThemeProvider` (next-themes) and `QueryClientProvider` (react-query).
-
-| Route | Component | Purpose |
-| --- | --- | --- |
-| `/` | `Dashboard` | KPIs, calls-over-time chart, top consumers, lifecycle table |
-| `/api-library` | `ApiLibrary` | Browse APIs, code samples (curl/node), explain, sample payloads |
-| `/upload` | `Upload` | Multi-step wizard to publish a new API |
-| `/download` | `Download` | Browse/download API artifacts and record downloads |
-| `/tags` | `Tags` | Context tags & metadata; APIs grouped by domain |
-| `/access` | `Access` | Admin access management (roles, users, status) |
-| `/usage` | `Usage` | Usage & KPIs (bar/pie charts, weighted latency/error) |
-| `/trace` | `PolicyTrace` | Request/policy trace viewer |
-| `/direction2` | `Direction2Demo` | Demo of endpoint-accordion explain UX |
-
-### Navigation (`src/components/TopNav.jsx`)
-Logo + primary nav (Dashboard, API Library, Downloads, Context Tags, Admin Access, Usage & KPIs,
-Trace), an **Upload API** button, and a signed-in user avatar (Divya M.).
-
-### Pages (summary)
-- **Dashboard** — 4 stat cards (Total APIs, Active, Consumers, Added This Month), an area
-  chart of API calls over 7/30/90 days (deterministic seeded data), a Top Consumers bar list,
-  and an API Lifecycle table. Data comes from `GET /api/apis`.
-- **ApiLibrary** — method badges, generated `curl` and Node fetch snippets, expandable rows,
-  and the audience-aware Explain experience using `explanations.js` + `samplePayloads.js`.
-- **Upload** — 5-tab wizard (Basic Info → Documentation → Sample Payloads → Tags → Version)
-  built with `react-hook-form`; validates JSON; posts to `POST /api/apis`, then navigates to
-  the library on success.
-- **Download** — artifact download page with domain/type filters + search; lists prior
-  downloads and records new ones via `/api/downloads`.
-- **Tags** — tag categories (Business Domain, Technical Type, Lifecycle, Security Level) and
-  APIs grouped by domain.
-- **Access** — user access table with role/status styling (mock user list).
-- **Usage** — usage KPIs: bar chart of calls/errors, type-distribution pie, call-weighted
-  average latency and error rate.
-- **PolicyTrace** — trace viewer with method/status color coding and sample objects.
-- **Direction2Demo** — demonstrates the per-operation accordion Explain pattern.
-
-### Data (`src/data/`)
-- **apis.js** — 15 mock APIs across domains **Submissions, Underwriting, Policy, Claims, Data
-  Services** (Create Submission, Submission Status, Submission Documents, Appetite Check, Risk
-  Score, Quote, Bind, Policy Lookup, Exposure, FNOL, Claim Status, Claim Reserve, Claim
-  Payment, Loss Run, Reference Data). Also used by the backend to seed the DB.
-- **explanations.js** — seed explanations keyed by `"METHOD /path"`, each in three audience
-  registers: **Business, Developer, Partner**.
-- **samplePayloads.js** — sample request/response JSON per API name (GET endpoints omit
-  `request`).
-
-### Service layer (`src/services/apiClient.js`)
-Thin `fetch` wrapper exposing: `getApis()`, `createApi(payload)`, `getDownloads()`,
-`createDownload(payload)`. Throws with the server's message on non-2xx responses.
-
----
-
-## 7. Backend (`backend/server.js`)
-
-Express server on `PORT` (default **8787**). Uses a `pg` connection pool and applies
-`SET search_path TO <DB_SCHEMA>` per connection.
-
-### Startup behavior
-1. **`ensureSchema()`** — idempotently adds columns if missing: `tags_json jsonb`,
-   `sample_request jsonb`, `sample_response jsonb` on `apis`.
-2. **`seedDatabase()`** — if the row count doesn't match the seed set (or a spot-check
-   lifecycle mismatch is found), clears `downloads` + `apis` and re-seeds from `src/data/apis.js`
-   (+ `samplePayloads.js`).
-
-### Endpoints
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | `/api/health` | Returns DB name + current schema |
-| GET | `/api/apis` | List all APIs (`formatApiRow` normalizes columns) |
-| POST | `/api/apis` | Create an API; requires `name`, `type`, `domain`, `owner` |
-| GET | `/api/downloads` | List last 20 downloads (joined to `apis`) |
-| POST | `/api/downloads` | Record a download; resolves `apiId` by name if needed |
-
-### Resilience notes
-Both `POST` handlers use **multi-attempt inserts** (`tryApiInsert`, `tryDownloadInsert`) that
-try several column layouts so the code tolerates different/legacy DB schemas. `formatApiRow`
-and `formatDownloadRow` read many possible column names with fallbacks.
-
----
-
-## 8. Database Schema
-
-PostgreSQL, schema selectable via `DB_SCHEMA` (default `public`).
-
-**`apis`** — `id, api_id, name, version, lifecycle, type, description, owner, consumers,
-status, published, endpoint, environment, restricted, created_at, updated_at`
-(+ `tags_json`, `sample_request`, `sample_response` added at runtime by `ensureSchema()`).
-
-**`downloads`** — `id, download_id, api_id, artifact_name, downloaded_by, created_at`.
-
----
-
-## 9. Configuration / Environment
-
-`.env` (see `.env.example`):
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `PORT` | Backend port | `8787` |
-| `DB_HOST` | PostgreSQL host | — |
-| `DB_PORT` | PostgreSQL port | `5432` |
-| `DB_NAME` | Database name | — |
-| `DB_USER` | Database user | — |
-| `DB_PASSWORD` | Database password | — |
-| `DB_SCHEMA` | Schema / search_path | `public` |
-| `DB_SSL` | `true` to enable SSL (relaxed cert check) | unset |
-
----
-
-## 10. Deployment & Ops
-
-- **`web.config`** — IIS URL Rewrite: proxy `^api/(.*)` → `http://localhost:8787/api/{R:1}`;
-  SPA fallback rewrites all non-file/non-directory requests to `/index.html`.
-- **`ecosystem.config.cjs`** — PM2 app `coaction-workbench-backend` running `backend/server.js`
-  (fork mode, autorestart, `max_memory_restart: 300M`, `NODE_ENV=production`, `PORT=8787`).
-- **`install-service.cjs`** — installs a Windows Service named **CoAction API** that runs the
-  backend (via `node-windows`).
-- **`deploy-backend.ps1`** — `npm ci` → `npm run build` → copy `dist/*` to a frontend path →
-  `pm2 start ecosystem.config.cjs` → `pm2 save`.
-- **`iis-deploy-bundle/`** — a prebuilt frontend bundle (`index.html`, `web.config`, `assets/`)
-  ready to drop into an IIS site.
-
----
-
-## 11. Known Issues / Notes / TODO
-
-- `.env` and `.env.backup-*` are ignored by `.gitignore` and have been removed from Git's index
-  while remaining available locally. If credentials were committed before this change, rotate
-  them outside the repo.
-- `README.md` has been refreshed to describe the current React Router app, 15 seed APIs,
-  backend endpoints, and project-log convention.
-- The **Download** and **Trace** pages are now exposed through top navigation; `Direction2Demo`
-  remains an internal/demo route.
-- Charts/metrics on Dashboard and Usage are **synthesized** from `consumers` counts and seeded
-  randomness (not real telemetry).
-
----
+Record meaningful project changes here as the work evolves.
 
 ## Change Log
 
-Add a new dated entry at the top of this list for every meaningful change.
+### 2026-09-30 — Universal search intent router
+- New `src/lib/search/intent.js` `resolveIntent(query, { apis })` turns any query into a ranked list of jump actions so the search never dead-ends. Routes to: Policy Trace (object IDs), Sandbox (endpoint paths or "test/try/run" + API), API Library (name/owner/domain), and all pages (Dashboard, Library, Sandbox, Tags, Usage, Trace, Configuration, Upload, Access) via keyword/synonym matching. Always includes a "Search the Library for …" fallback.
+- `src/App.jsx` refactored: single router memo replaces the ad-hoc matchers; unified suggestion dropdown with icon + label + kind badge; keyboard nav + Enter run the highlighted primary.
+- Per user choice, exact/unambiguous hits (full object ID, full endpoint path, exact page word) auto-navigate after a 600ms debounce and clear the box; everything else waits for Enter/click.
+- The grounded inline answer card stays as the one network-backed enrichment for question-like queries.
+- Browser-verified: "who is calling my apis" → Usage primary (no dead-end); "settings" → auto-jumped to Configuration; "test bind" + Enter → Bind API Sandbox.
 
-### 2026-09-09 — Resolve documentation and navigation TODOs
-- Added `.env` and `.env.backup-*` to `.gitignore` and removed already tracked env files from
-  Git's index while keeping them on disk locally.
-- Updated `README.md` so it matches the current React Router app, backend setup, 15 seed APIs,
-  routes, endpoints, and project-log convention.
-- Added the `Download` page route at `/download` and exposed **Downloads** in the top nav.
-- Exposed **Trace** in the top nav.
-- Validated the app with `npm run build`; build passed with only Vite's large-chunk warning.
-- Prepared the current workspace changes for commit and push to `origin/main`.
+### 2026-09-30 — Search bar: "Test this endpoint" → Sandbox jump
+- The global search now detects an API endpoint path in the query (e.g., "I want to test this endpoint /api/v1/quotes/{id}/bind"), normalizes path params, matches it to a catalog spec, and offers a "Test &lt;API&gt; in the Sandbox" action that opens `/sandbox?api=<id>`. Enter triggers it too.
+- Complements the existing ID → Trace jump; the inline answer still renders below so you also get the explanation/curl.
+- Browser-verified: the Bind path routed to the Bind API request builder (pre-filled id + body, ready to run).
 
-### 2026-09-09 — Baseline documentation
-- Reviewed the entire project and created this `PROJECT_LOG.md`.
-- Documented the tech stack, architecture, folder structure, all routes/pages, backend
-  endpoints, DB schema, configuration, and deployment/ops.
-- Recorded known issues: `.env` not gitignored, outdated `README.md`, unrouted `Download`
-  page, and synthesized dashboard metrics.
+### 2026-09-29 — Make the global search bar AI-forward
+- Inline instant answers: question-like queries (debounced ~350ms) call the grounded assistant engine (`api.ask`) and render a compact answer card at the top of the search dropdown with source chips and a "Continue in assistant" handoff. Catalog refusals are suppressed.
+- ID-aware jump: pasting an object ID (`PK…`/`POL-`/`SUB-`/`QTE-`/`CLM-`/`ACC-`) surfaces a "Trace &lt;ID&gt; in Policy Trace" action; Enter or click navigates to `/trace?id=…`.
+- `Trace.jsx` now seeds from and reacts to the `?id=` URL param.
+- `Assistant.jsx` re-added an `open-assistant` window event that opens the panel and auto-sends an optional `detail.question`.
+- Browser-verified end to end: answer card, ID jump into a live trace, and the search→assistant handoff (auto-sent question returns answer + curl + sources + follow-ups).
+
+### 2026-09-22 — Implement all 15 catalog APIs as real endpoints
+- Created 8 tables (`workbench_submission_documents`, `workbench_quotes`, `workbench_policies`, `workbench_policy_exposures`, `workbench_claims`, `workbench_claim_reserves`, `workbench_claim_payments`, `workbench_class_codes`), 6 ID sequences, and 8 indexes.
+- Added `underwriter` and `priority` columns to `workbench_submissions`.
+- Seeded a coherent demo dataset so GET endpoints return data immediately.
+- Implemented the remaining 14 endpoints with validation, 404 handling, and parameterized SQL.
+- Appetite Check and Risk Score are compute-only and persist nothing.
+- Endpoints are connected: Bind converts a quote into a policy, FNOL requires an existing policy, reserves and payments update the claim balance, and loss runs join claims through policies by account.
+- Replaced the exact-match `IMPLEMENTED_ENDPOINTS` set with regex patterns so parameterized paths route to real endpoints.
+- Aligned Try It default path parameters with real seeded IDs so first-click requests succeed.
+- Validated all 15 endpoints plus 404 and 400 paths; browser-verified Try It returns `200 OK` for reads and `201 Created` for writes.
+
+### 2026-09-22 — Drive Dashboard metrics from real data
+- Added `GET /api/usage/summary`, `GET /api/usage/timeseries`, and `GET /api/usage/top-consumers` that aggregate from `api_call_logs` and the `apis` catalog.
+- Timeseries uses `generate_series` so days with no traffic return zero instead of being missing.
+- Replaced the Dashboard's `seededRandom` call chart, `consumers × 450` Top Consumers estimate, and `apis.length × 0.12` Added This Month guess with real query results.
+- Added `getUsageSummary`, `getUsageTimeseries`, and `getTopConsumers` to the API client.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Dashboard shows real values: 15 total APIs, 13 active, 2 consumers, and actual per-consumer call counts.
+
+### 2026-09-22 — Implement real POST /api/v1/submissions endpoint
+- Created `public.workbench_submissions` table, `workbench_submission_seq` sequence, and two supporting indexes in `PolicyODS`.
+- Added `POST /api/v1/submissions` to the backend with field validation, sequence-based `SUB-YYYY-NNNNN` ID generation, and a parameterized insert.
+- Added `IMPLEMENTED_ENDPOINTS` routing so Try It calls the real route for implemented endpoints while the other catalog APIs keep using the local mock upstream.
+- Verified with direct calls: valid payload returned `201 Created`, invalid payload returned `400` with per-field validation details.
+- Browser-verified Preview > Try It on Create Submission API returned `201 Created` and persisted `SUB-2026-10002`.
+- Confirmed rows in `workbench_submissions` and the matching `201` entry in `api_call_logs` via read-only SELECT.
+
+### 2026-09-22 — Add real backend proxy path for Try It
+- Updated `/api/test-run` so Express builds a trusted upstream URL, calls the target API server-side, captures status, headers, duration, and body, and logs the result.
+- Added configurable Try It upstream base URLs with `API_TEST_BASE_URL`, `API_TEST_DEV_BASE_URL`, `API_TEST_QA_BASE_URL`, `API_TEST_PRODUCTION_BASE_URL`, and `API_TEST_TIMEOUT_MS`.
+- Added a local `/mock-api/*` dummy upstream so Try It performs an actual server-to-server HTTP call even before real non-prod API gateway URLs are configured.
+- Documented the Try It proxy configuration in `.env.example` and `README.md`.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Directly verified `/api/test-run` calls the mock upstream and browser-verified Preview > Try It still returns `200 OK` with response data.
+
+### 2026-09-22 — Hide Try It logged call label
+- Removed the visible `Logged call #` text from the API Library Try It response panel while keeping backend call logging intact.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified Try It still returns `200 OK` and no longer displays the logged call label.
+
+### 2026-09-21 — Wire API Library Try It through backend executor
+- Added a backend `POST /api/test-run` endpoint that executes API Library Try It requests using documented sample payloads and records each run in `api_call_logs`.
+- Added `api_call_logs` schema creation during backend startup for portal test tracking.
+- Added `apiClient.runApiTest()` and updated the API Library Try It panel to call the backend, show loading state, display status/duration/body, and show the logged call ID.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified Preview > Try It returns `200 OK`, displays the response body, and records a logged call ID.
+
+### 2026-09-21 — Update Upload API navigation icon
+- Replaced the raw up-arrow text in the top navigation Upload API button with a lucide upload cloud icon.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Upload API nav button renders one SVG icon and no raw arrow text.
+
+### 2026-09-16 — Correct deployment package seed data files
+- Created a corrected non-prod deployment package that includes `src/data` because the backend imports seed APIs and sample payloads from that path.
+- This fixes PM2 startup failures where `backend/server.js` could not resolve `D:\Devworkbench\src\data\apis.js` after deployment.
+
+### 2026-09-16 — Create non-prod deployment package
+- Created a timestamped deployment zip for the non-prod server in the user's Downloads folder.
+- Included the built frontend bundle, IIS `web.config`, backend server files, PM2 ecosystem config, package manifests, environment template, and project documentation.
+- Created a corrected deployment zip that also includes `src/data` because the backend imports seed APIs and sample payloads from that folder at runtime.
+
+### 2026-09-16 — Remove bottom Usage insight cards
+- Removed the three bottom Usage and KPIs insight cards for Peak test window, Reliability watchlist, and Gateway ready.
+- Cleaned up the unused insight card styles and icon import.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the removed cards are no longer visible while Calls and Errors by API and API KPI Detail remain visible.
+
+### 2026-09-16 — Remove API Mix from Usage and KPIs
+- Removed the API Mix protocol distribution pie chart from the Usage and KPIs page.
+- Cleaned up the now-unused pie chart imports and type distribution data.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the API Mix section is no longer visible while Calls and Errors by API and API KPI Detail remain visible.
+
+### 2026-09-15 — Set Total APIs stat tile to white
+- Changed the API Library Total APIs stat tile background from light gray to white while keeping the black border.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Total APIs tile renders with a white background and black border.
+
+### 2026-09-15 — Add API Library search icon
+- Added a lucide search icon inside the API Library search field.
+- Added scoped search input spacing so the placeholder and typed text start after the icon.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the search icon renders inside the field and search filtering still works.
+
+### 2026-09-15 — Polish Upload API navigation icon
+- Replaced the raw up-arrow text in the top navigation Upload API button with a lucide upload cloud icon.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Upload API nav button renders one SVG icon and no raw arrow text.
+
+### 2026-09-15 — Redesign Upload API page
+- Reworked the Upload API page into a responsive stepper-style intake flow.
+- Added a current-step summary card and clearer step labels for Basic Info, Documentation, Sample Payloads, Tags, and Version.
+- Restyled success/error alerts, documentation upload dropzone, uploaded-file preview, and form footer actions with scoped Upload page CSS.
+- Preserved existing required-field gating, JSON validation, file validation, and submit behavior.
+- Removed the small Catalog Intake eyebrow from the Upload API page header.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified Upload page rendering, required-field validation, step progression after valid basic fields, and no horizontal overflow on narrow width.
+
+### 2026-09-15 — Improve API schema required UI
+- Replaced the Schema tab's tiny Yes/No requirement pills with clearer Required/Optional badges.
+- Added responsive schema field cards for narrower screens so schema details do not rely on a horizontally scrolling table.
+- Tightened API Library card responsiveness so expanded Schema content does not create page-level horizontal overflow.
+- Added a black border to the API Library Total APIs stat box.
+- Restyled the API Library tag filters as selectable chips so the active selection no longer looks like a regular filled button.
+- Cleaned up API Library card padding with scoped header, metadata, footer, and responsive grid spacing.
+- Changed the API Test dropdown to open inline within its API card so it no longer blocks the next card's Test button.
+- Fixed Test menu switching so clicking another API's Test button opens that API's menu in one click.
+- Reworked the inline Test menu into a compact full-width action panel so opening Test no longer creates a large empty area in the API card header.
+- Removed the dropdown chevron from the API Library Test button while keeping the test action panel behavior.
+- Replaced the blank Change Log tab with example release history entries showing what changed, impact, developer action, owner, and version/date.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Schema tab at desktop and narrow widths, including Required/Optional badges and no horizontal overflow.
+
+### 2026-09-15 — Redesign Usage and KPIs page
+- Replaced the basic Usage page with a responsive KPI console for API calls, errors, latency, and consumers.
+- Added range controls for 7d, 30d, and 90d usage views.
+- Added usage charts for calls/errors by API and API type mix.
+- Added searchable API KPI detail with desktop table and responsive cards on narrower screens.
+- Added operational insight cards for peak testing windows, reliability watchlist, and gateway readiness.
+- Removed Availability and Trend columns from the API KPI detail table and responsive cards.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified desktop table layout, narrow responsive card layout, and API search filtering.
+
+### 2026-09-15 — Redesign User Access page
+- Replaced the Admin Access page with a tabbed access governance console.
+- Added summary cards for active users, pending requests, privileged users, and expiring access.
+- Added tabs for Users, Requests, Roles, API Permissions, and Audit.
+- Added a Manage drawer that shows user details, permissions, API access, recent activity, and suspend/reactivate actions.
+- Fixed User Access table spacing and the Manage action glitch by adding scoped table, button, and drawer styles.
+- Made the Manage drawer responsive so detail cards stack cleanly on narrow browser widths.
+- Replaced the Users table with responsive user cards on narrower screens to remove the horizontal scrollbar and clipped Status/Action columns.
+- Removed the Last Active column from the User Access list and aligned the Action header to the left.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Access page renders, all five tabs switch, and the Manage drawer opens.
+
+### 2026-09-15 — Redesign Context Tags page
+- Replaced the static Context Tags layout with a governance-focused tag dictionary, selected-tag detail panel, tag health metrics, and API tag matrix.
+- Simplified the Context Tags page by removing the selected-tag detail panel and API Tag Matrix after review.
+- Fixed the Context Tags search input spacing so the search icon no longer overlaps the placeholder text.
+- Added inferred domain, lifecycle, technical type, PII, and financial tags so the page remains useful even when API rows do not include complete tag/domain fields.
+- Added search and category filtering for the tag dictionary.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Context Tags page renders 15 scanned APIs and the Tag Dictionary, with no Selected Tag or API Tag Matrix sections visible; search input text starts 16px after the icon.
+
+### 2026-09-14 — Remove Try It authentication field
+- Removed the visible Authorization/Bearer Token field from the API Library Try It form.
+- Kept Environment, Request Body/Path Parameter, Send Request, and response behavior intact.
+- Validated with `npm run build`; build passed with only Vite's large-chunk warning.
+- Browser-verified the Try It panel no longer shows Authorization or Bearer Token, and still shows Send Request.

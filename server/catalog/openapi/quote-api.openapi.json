@@ -1,0 +1,253 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Quote API",
+    "version": "v1.0",
+    "description": "Creates an underwriting quote for the requested coverage and terms.",
+    "x-domain": "Underwriting & Submissions",
+    "x-owner": "Underwriting & Submissions Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 2,
+    "x-document": {
+      "purpose": "Creates an underwriting quote for the requested coverage and terms.",
+      "whenToUse": "Use this to generate a quote for an approved or referred submission.",
+      "notes": [
+        "Quote expiration date should be displayed to brokers.",
+        "Premium, taxes, and fees should be shown separately when possible."
+      ],
+      "errors": [
+        "Submission not eligible to quote",
+        "Invalid limit or deductible",
+        "Expired submission data"
+      ],
+      "owner": "Underwriting & Submissions Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Generates an underwriting quote for requested coverage and terms.",
+        "evaluates": [
+          "Insured profile and risk factors",
+          "Coverage type and limit selection",
+          "Term length and renewal history"
+        ],
+        "returns": [
+          "Premium amount and quote ID",
+          "Quote expiration date and effective date"
+        ]
+      },
+      "Developer": {
+        "summary": "Submits a quote request with coverage parameters and returns a quote object with ID and premium. Returns 202 for async pricing.",
+        "evaluates": [
+          "Request body schema and validation",
+          "Risk data completeness",
+          "Pricing engine availability"
+        ],
+        "returns": [
+          "HTTP 200 or 202 with quote object",
+          "Quote ID for bind operations"
+        ]
+      },
+      "Partner": {
+        "summary": "Request a quote with coverage details. Get a quote ID, premium, and expiration date.",
+        "evaluates": [
+          "Insured and coverage information"
+        ],
+        "returns": [
+          "Quote ID and premium",
+          "Valid until date"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [],
+      "request": [
+        {
+          "name": "submissionId",
+          "type": "string",
+          "required": true,
+          "description": "Submission identifier assigned by the submissions system.",
+          "example": "SUB-2026-10452"
+        },
+        {
+          "name": "coverage",
+          "type": "string",
+          "required": true,
+          "description": "Coverage being quoted or evaluated.",
+          "example": "GENERAL_LIABILITY"
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": true,
+          "description": "Requested insurance coverage limit.",
+          "example": "2000000"
+        },
+        {
+          "name": "deductible",
+          "type": "integer",
+          "required": true,
+          "description": "Deductible amount selected for the quote.",
+          "example": "25000"
+        },
+        {
+          "name": "effectiveDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the policy, quote, or bind action becomes effective.",
+          "example": "2026-10-01"
+        }
+      ],
+      "response": [
+        {
+          "name": "quoteId",
+          "type": "string",
+          "required": true,
+          "description": "Quote identifier returned by the quoting service.",
+          "example": "QTE-45092"
+        },
+        {
+          "name": "premium",
+          "type": "integer",
+          "required": true,
+          "description": "Base premium returned for a quote.",
+          "example": "185000"
+        },
+        {
+          "name": "taxesAndFees",
+          "type": "integer",
+          "required": true,
+          "description": "Taxes and fees added to the quote premium.",
+          "example": "8200"
+        },
+        {
+          "name": "totalCost",
+          "type": "integer",
+          "required": true,
+          "description": "Total quoted cost including premium, taxes, and fees.",
+          "example": "193200"
+        },
+        {
+          "name": "expirationDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the quote or policy expires.",
+          "example": "2026-09-15"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/quotes": {
+      "post": {
+        "operationId": "quote-api",
+        "summary": "Creates an underwriting quote for the requested coverage and terms.",
+        "tags": [
+          "Production",
+          "REST",
+          "Underwriting & Submissions"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Use this to generate a quote for an approved or referred submission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "quoteId": {
+                      "type": "string",
+                      "example": "QTE-45092"
+                    },
+                    "premium": {
+                      "type": "integer",
+                      "example": 185000
+                    },
+                    "taxesAndFees": {
+                      "type": "integer",
+                      "example": 8200
+                    },
+                    "totalCost": {
+                      "type": "integer",
+                      "example": 193200
+                    },
+                    "expirationDate": {
+                      "type": "string",
+                      "example": "2026-09-15"
+                    }
+                  },
+                  "required": [
+                    "quoteId",
+                    "premium",
+                    "taxesAndFees",
+                    "totalCost",
+                    "expirationDate"
+                  ]
+                },
+                "example": {
+                  "quoteId": "QTE-45092",
+                  "premium": 185000,
+                  "taxesAndFees": 8200,
+                  "totalCost": 193200,
+                  "expirationDate": "2026-09-15"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "submissionId": {
+                    "type": "string",
+                    "example": "SUB-2026-10452"
+                  },
+                  "coverage": {
+                    "type": "string",
+                    "example": "GENERAL_LIABILITY"
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "example": 2000000
+                  },
+                  "deductible": {
+                    "type": "integer",
+                    "example": 25000
+                  },
+                  "effectiveDate": {
+                    "type": "string",
+                    "example": "2026-10-01"
+                  }
+                },
+                "required": [
+                  "submissionId",
+                  "coverage",
+                  "limit",
+                  "deductible",
+                  "effectiveDate"
+                ]
+              },
+              "example": {
+                "submissionId": "SUB-2026-10452",
+                "coverage": "GENERAL_LIABILITY",
+                "limit": 2000000,
+                "deductible": 25000,
+                "effectiveDate": "2026-10-01"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

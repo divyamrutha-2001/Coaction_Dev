@@ -1,233 +1,265 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, CalendarPlus, Users, Zap } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { apiClient } from '../services/apiClient'
-
-const RANGE_OPTIONS = [
-  { key: '7d', days: 7 },
-  { key: '30d', days: 30 },
-  { key: '90d', days: 90 },
-]
-
-// Deterministic pseudo-random in [0, 1) so daily values stay stable across re-renders.
-function seededRandom(seedStr) {
-  let h = 2166136261
-  for (let i = 0; i < seedStr.length; i++) {
-    h ^= seedStr.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return ((h >>> 0) % 1000) / 1000
-}
-
-function formatCount(n) {
-  return Math.round(n).toLocaleString()
-}
-
-function formatDay(date) {
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function CallsTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div
-      style={{
-        backgroundColor: 'hsl(var(--card))',
-        border: '1px solid hsl(var(--border))',
-        borderRadius: '0.5rem',
-        padding: '0.6rem 0.9rem',
-        boxShadow: '0 4px 12px rgb(0 0 0 / 0.08)',
-        fontSize: '0.85rem',
-      }}
-    >
-      <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{label}</p>
-      <p style={{ color: 'hsl(var(--muted))' }}>{payload[0].value.toLocaleString()} calls</p>
-    </div>
-  )
-}
-
-// Distribute the ~18K monthly aggregate across active consumers so Top Consumers totals match the chart.
-const CALLS_PER_CONSUMER_MONTHLY = 450
+import { Link } from 'react-router-dom'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  ArrowRight,
+  Boxes,
+  CircleAlert,
+  Network,
+  Users,
+} from 'lucide-react'
+import { api, formatNumber } from '../api/client.js'
+import { ErrorState, LoadingState, StatusBadge, shortDate, useNarrow } from '../components/ui.jsx'
 
 export default function Dashboard() {
-  const { data: apis = [] } = useQuery({
-    queryKey: ['apis'],
-    queryFn: () => apiClient.getApis(),
-  })
+  const narrow = useNarrow()
+  const dashboard = useQuery({ queryKey: ['dashboard'], queryFn: api.dashboard })
+  const catalog = useQuery({ queryKey: ['apis'], queryFn: api.apis })
+  const access = useQuery({ queryKey: ['access'], queryFn: api.access })
 
-  const addedThisMonth = apis.length ? Math.max(1, Math.round(apis.length * 0.12)) : 0
-
-  const stats = [
-    { label: 'Total APIs', value: apis.length, icon: Zap },
-    { label: 'Active', value: apis.filter(a => a.lifecycle === 'Published').length, icon: Activity },
-    { label: 'Consumers', value: apis.reduce((sum, a) => sum + (Number(a.consumers) || 0), 0), icon: Users },
-    { label: 'Added This Month', value: addedThisMonth, icon: CalendarPlus },
-  ]
-
-  const [range, setRange] = useState('30d')
-  const days = RANGE_OPTIONS.find((r) => r.key === range).days
-
-  const callsOverTime = useMemo(() => {
-    const now = new Date()
-    const rows = []
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date(now)
-      d.setDate(now.getDate() - i)
-      const rnd = seededRandom(`calls-${d.toISOString().slice(0, 10)}`)
-      rows.push({ date: formatDay(d), calls: Math.round(200 + rnd * 800) })
+  useEffect(() => {
+    if (window.location.hash === '#attention') {
+      document.getElementById('attention')?.scrollIntoView({ block: 'start' })
     }
-    return rows
-  }, [days])
+  }, [dashboard.data])
 
-  const xTickInterval = Math.max(0, Math.floor(days / 6) - 1)
+  if (dashboard.isLoading) return <LoadingState label="Loading workbench dashboard" />
+  if (dashboard.isError) return <ErrorState title="Unable to load the dashboard" onRetry={() => dashboard.refetch()} />
 
-  const teamCalls = useMemo(() => {
-    if (!apis.length) return []
-    const totals = new Map()
-    for (const api of apis) {
-      const owner = api.owner || 'Unknown Team'
-      const monthly = (Number(api.consumers) || 0) * CALLS_PER_CONSUMER_MONTHLY
-      totals.set(owner, (totals.get(owner) || 0) + monthly)
-    }
-    const sorted = Array.from(totals.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4)
-    const max = sorted[0]?.[1] || 1
-    return sorted.map(([team, calls]) => ({
-      team,
-      calls,
-      width: `${Math.round((calls / max) * 100)}%`,
-    }))
-  }, [apis])
+  const data = dashboard.data
+  const apis = catalog.data || []
+  const days = data.callsByDay || []
+  const flagged = apis.filter((item) => item.lifecycle === 'Draft' || item.lifecycle === 'Deprecated')
+  const draftCount = flagged.filter((item) => item.lifecycle === 'Draft').length
+  const deprecatedCount = flagged.filter((item) => item.lifecycle === 'Deprecated').length
+  const pendingAccess = access.data?.summary?.pendingRequests || 0
+  const totalCalls = sum(days, 'calls')
+  const peakCalls = [...days].sort((a, b) => b.calls - a.calls)[0]
+  const peakErrors = [...days].sort((a, b) => (b.errors || 0) - (a.errors || 0))[0]
+  const publishedPercent = data.totalApis ? Math.round((data.publishedCnt / data.totalApis) * 100) : 0
+
+  const ownerChart = (data.topOwners || []).map((owner) => ({
+    owner: owner.owner.replace(' Team', ''),
+    calls: owner.calls,
+  }))
 
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <div className="bg-gradient-primary text-white rounded-lg p-8 md:p-12">
-        <h1 className="text-4xl font-bold mb-2">API Developer Workbench</h1>
-        <p className="text-lg opacity-90">Publication status, versions, and consumers</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon
-          return (
-            <div key={i} className="card-base p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted mb-1">{stat.label}</p>
-                  <p className="text-3xl font-bold">{stat.value}</p>
-                </div>
-                <Icon className="h-8 w-8 text-primary opacity-70" />
-              </div>
+    <div className="control-tower flex flex-col gap-3">
+      <section className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <div className="grid items-center gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-graphite px-2.5 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white">Control tower</span>
             </div>
-          )
-        })}
-      </div>
+            <div className="mt-3">
+              <h1 className="text-3xl font-bold text-ink">API Developer Workbench</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">
+                One place to publish APIs, browse the catalog, try requests in the Sandbox, and trace a policy across the services that touched it.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-lg bg-navy p-4 text-white">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm font-semibold text-slate-100">Published APIs</p>
+              <p className="text-2xl font-black">{data.publishedCnt}<span className="text-base text-slate-300">/{data.totalApis}</span></p>
+            </div>
+            <div className="mt-2 h-1.5 rounded-md bg-white/10">
+              <div className="h-full rounded-md bg-gradient-to-r from-cyan-300 to-emerald-300" style={{ width: `${publishedPercent}%` }} />
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <MiniStat label="Published" value={`${publishedPercent}%`} />
+              <MiniStat label="Draft" value={draftCount} highlight={draftCount > 0} />
+              <MiniStat label="Deprecated" value={deprecatedCount} />
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 card-base p-6">
-          <div className="flex items-center justify-between mb-4">
+      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <Kpi icon={Boxes} label="Catalog" value={formatNumber(data.totalApis)} detail={`${formatNumber(data.publishedCnt)} published`} />
+        <Kpi icon={CircleAlert} label="Needs action" value={formatNumber(flagged.length + pendingAccess)} detail={`${draftCount} draft · ${pendingAccess} access`} tone={flagged.length + pendingAccess ? 'amber' : 'slate'} />
+        <Kpi icon={Users} label="Consumers" value={formatNumber(data.consumersCnt)} detail={`${formatNumber(data.apisCalled || 0)} of ${formatNumber(data.totalApis)} APIs called`} />
+        <PeakCallsKpi days={days} peakCalls={peakCalls} />
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(340px,1fr)]">
+        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+          <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold">API calls over time</h2>
-              <p className="text-xs text-muted">all environments</p>
+              <h2 className="text-xl font-black text-ink">Traffic quality</h2>
+              <p className="mt-1 text-sm text-ink-muted">Call volume and error pressure across the current 30-day window.</p>
             </div>
-            <div className="inline-flex rounded-md bg-muted p-1">
-              {RANGE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setRange(opt.key)}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    range === opt.key
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted hover:text-foreground'
-                  }`}
-                >
-                  {opt.key}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 text-xs font-bold">
+              {peakCalls && <span className="rounded-md bg-cyan-50 px-2.5 py-1.5 text-cyan-950 ring-1 ring-cyan-200 dark:bg-cyan-500/10 dark:text-cyan-200 dark:ring-cyan-500/30">Peak {shortDate(peakCalls.date)} · {formatNumber(peakCalls.calls)}</span>}
+              {peakErrors?.errors > 0 && <span className="rounded-md bg-amber-50 px-2.5 py-1.5 text-amber-950 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">Errors {shortDate(peakErrors.date)} · {formatNumber(peakErrors.errors)}</span>}
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={320}>
-            <AreaChart data={callsOverTime} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
-              <defs>
-                <linearGradient id="callsGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis
-                dataKey="date"
-                stroke="hsl(var(--muted))"
-                tickLine={false}
-                axisLine={false}
-                interval={xTickInterval}
-              />
-              <YAxis
-                stroke="hsl(var(--muted))"
-                tickFormatter={formatCount}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip content={<CallsTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="calls"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                fill="url(#callsGradient)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="card-base p-6">
-          <h2 className="text-xl font-semibold mb-6">Top Consumers</h2>
-          <div className="space-y-4">
-            {teamCalls.map((team) => (
-              <div key={team.team}>
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-sm font-medium">{team.team}</p>
-                  <p className="text-xs text-muted">{team.calls.toLocaleString()} calls</p>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-gradient-primary h-full rounded-full" style={{ width: team.width }} />
-                </div>
-              </div>
-            ))}
+          <div className="h-56 min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={days} margin={{ left: 0, right: 8, top: 12 }}>
+                <defs>
+                  <linearGradient id="callsFill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#2563eb" stopOpacity="0.24" />
+                    <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
+                  </linearGradient>
+                  <linearGradient id="errorsFill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" stopOpacity="0.2" />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 7" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={shortDate} interval={narrow ? 6 : 3} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)' }} width={56} tickFormatter={(value) => formatNumber(value)} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 18px 45px rgba(15, 23, 42, 0.12)' }}
+                  formatter={(value, name) => [formatNumber(value), name === 'calls' ? 'Calls' : 'Errors']}
+                  labelFormatter={(label) => `Date ${label}`}
+                />
+                <Area type="monotone" dataKey="calls" name="calls" stroke="#2563eb" strokeWidth={2.5} fill="url(#callsFill)" />
+                <Area type="monotone" dataKey="errors" name="errors" stroke="#f97316" strokeWidth={2.25} fill="url(#errorsFill)" strokeDasharray="5 4" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      <div className="card-base p-6">
-        <h2 className="text-xl font-semibold mb-6">API Lifecycle</h2>
-        <div className="scrollable border border-border rounded-md" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-          <table className="w-full text-sm">
-            <thead className="border-b border-border sticky top-0 bg-card" style={{ position: 'sticky', top: 0 }}>
-              <tr>
-                <th className="pb-3 font-bold text-foreground text-left px-4">API Name</th>
-                <th className="pb-3 font-bold text-foreground text-left px-4">Version</th>
-                <th className="pb-3 font-bold text-foreground text-left px-4">Status</th>
-                <th className="pb-3 font-bold text-foreground text-left px-4">Owner</th>
-                <th className="pb-3 font-bold text-foreground text-right px-4">Consumers</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {apis.slice(0, 10).map((api) => (
-                <tr key={api.id} className="hover:bg-muted transition-colors">
-                  <td className="py-3 font-medium px-4">{api.name}</td>
-                  <td className="py-3 px-4">{api.version}</td>
-                  <td className="py-3 px-4">{api.lifecycle || '—'}</td>
-                  <td className="py-3 text-sm px-4">{api.owner}</td>
-                  <td className="py-3 text-right px-4">{api.consumers || 0}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-ink">Consumer demand</h2>
+              <p className="mt-1 text-sm text-ink-muted">Top owners ranked by call volume.</p>
+            </div>
+            <Link to="/usage" className="inline-flex items-center gap-1 text-sm font-bold text-cyan-700 hover:text-cyan-900">
+              Usage <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="grid gap-5">
+            <div className="h-56 min-w-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ownerChart} layout="vertical" margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
+                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 7" horizontal={false} />
+                  <XAxis type="number" tickFormatter={(value) => formatNumber(value)} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="owner" width={168} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(value) => [formatNumber(value), 'Calls']} />
+                  <Bar dataKey="calls" fill="#2563eb" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
     </div>
   )
+}
+
+function Kpi({ icon: Icon, label, value, detail, tone = 'cyan' }) {
+  return (
+    <article className={`kpi-tile kpi-${tone}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink-muted">{label}</p>
+          <p className="mt-2 text-3xl font-black text-ink">{value}</p>
+        </div>
+        <span className="rounded-lg p-2.5">
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
+      </div>
+      <p className="mt-3 text-sm font-medium text-ink-muted">{detail}</p>
+    </article>
+  )
+}
+
+function PeakCallsKpi({ days, peakCalls }) {
+  const [hover, setHover] = useState(null)
+  const W = 200
+  const H = 36
+  const BASE = 26
+  const beats = days
+  const values = beats.map((day) => Number(day.calls || 0))
+  const max = Math.max(1, peakCalls?.calls || 0, ...values)
+  const seg = values.length ? W / values.length : W
+  const center = (i) => i * seg + seg * 0.5
+  const points = [`0,${BASE}`]
+  values.forEach((v, i) => {
+    // Days with no calls stay flat; spikes scale against the peak day.
+    if (v <= 0) return
+    const s = i * seg
+    const a = v / max
+    const r = 3 + a * 21
+    points.push(
+      `${s + seg * 0.2},${BASE}`,
+      `${s + seg * 0.28},${BASE - r * 0.12}`,
+      `${s + seg * 0.36},${BASE}`,
+      `${s + seg * 0.42},${BASE + r * 0.1}`,
+      `${s + seg * 0.5},${BASE - r}`,
+      `${s + seg * 0.58},${BASE + Math.min(8, r * 0.3)}`,
+      `${s + seg * 0.64},${BASE}`,
+      `${s + seg * 0.76},${BASE - r * 0.15}`,
+      `${s + seg * 0.88},${BASE}`,
+    )
+  })
+  points.push(`${W},${BASE}`)
+  const active = hover == null ? null : beats[hover]
+  const shown = active ? active.calls : peakCalls?.calls || 0
+
+  function onMove(event) {
+    if (!values.length) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const ratio = Math.min(0.9999, Math.max(0, (event.clientX - rect.left) / rect.width))
+    setHover(Math.floor(ratio * values.length))
+  }
+
+  return (
+    <article className="kpi-tile kpi-cyan">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-ink-muted">{active ? 'Calls that day' : 'Peak calls'}</p>
+          <p className="mt-2 text-3xl font-black text-ink">{formatNumber(shown)}</p>
+          <p className={`mt-0.5 text-xs font-medium text-ink-muted ${active ? 'invisible' : ''}`}>
+            {peakCalls ? `Peak on ${formatLongDay(peakCalls.date)}` : 'No calls yet'}
+          </p>
+        </div>
+        <span className="rounded-lg p-2.5">
+          <Network className="h-5 w-5" aria-hidden="true" />
+        </span>
+      </div>
+      <div className="relative mt-2 h-9 cursor-crosshair" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-full w-full overflow-visible" aria-hidden="true">
+          {active && <rect x={hover * seg} y="0" width={seg} height={H} fill="#2563eb" opacity="0.12" />}
+          <polyline points={points.join(' ')} fill="none" stroke="#2563eb" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+        </svg>
+        {values.length > 0 && <span className="pulse-end-dot" />}
+        {active && (
+          <span
+            className="pointer-events-none absolute -top-7 -translate-x-1/2 whitespace-nowrap rounded-md bg-graphite px-2 py-1 text-[11px] font-semibold text-white shadow"
+            style={{ left: `${Math.min(80, Math.max(20, (center(hover) / W) * 100))}%` }}
+          >
+            {formatLongDay(active.date)} · {formatNumber(active.calls)} calls
+          </span>
+        )}
+      </div>
+    </article>
+  )
+}
+
+function formatLongDay(value) {
+  // Parse YYYY-MM-DD as a local date so it doesn't shift a day in US time zones.
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value))
+  const date = match ? new Date(+match[1], +match[2] - 1, +match[3]) : new Date(value)
+  if (Number.isNaN(date.getTime())) return shortDate(value)
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+function MiniStat({ label, value, highlight }) {
+  return (
+    <div className={`rounded-lg px-2 py-2 ring-1 ${highlight ? 'bg-amber-400/15 ring-amber-300/50' : 'bg-white/[0.07] ring-white/10'}`}>
+      <p className={`text-xl font-bold leading-tight ${highlight ? 'text-amber-200' : 'text-white'}`}>{value}</p>
+      <p className={`mt-0.5 text-xs font-medium ${highlight ? 'text-amber-100' : 'text-slate-200'}`}>{label}</p>
+    </div>
+  )
+}
+
+function sum(rows, key) {
+  return rows.reduce((total, row) => total + Number(row[key] || 0), 0)
 }

@@ -1,424 +1,186 @@
-import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import {
-  Shield,
-  Users,
-  KeyRound,
-  UserPlus,
-  Check,
-  X,
-  Search,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  Copy,
-} from 'lucide-react'
-import { apiClient } from '../services/apiClient'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check, Minus, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { api } from '../api/client.js'
+import { DataTable, ErrorState, LoadingState, MetricCard, PageHeader, SegmentedControl, StatusBadge, statusToneFor, useNarrow } from '../components/ui.jsx'
 
-const ROLE_STYLES = {
-  Admin: { bg: 'hsl(var(--primary) / 0.12)', color: 'hsl(var(--primary))' },
-  Developer: { bg: 'hsl(var(--accent) / 0.18)', color: 'hsl(172 66% 25%)' },
-  Viewer: { bg: 'hsl(var(--muted) / 0.15)', color: 'hsl(var(--muted))' },
-}
-
-const STATUS_STYLES = {
-  Active: {
-    bg: 'hsl(var(--accent) / 0.18)',
-    color: 'hsl(172 66% 25%)',
-    dot: 'hsl(var(--accent))',
-  },
-  Invited: {
-    bg: 'hsl(var(--secondary) / 0.15)',
-    color: 'hsl(var(--secondary))',
-    dot: 'hsl(var(--secondary))',
-  },
-  Suspended: {
-    bg: 'hsl(var(--destructive) / 0.12)',
-    color: 'hsl(var(--destructive))',
-    dot: 'hsl(var(--destructive))',
-  },
-}
-
-const INITIAL_USERS = [
-  { id: 'u1', name: 'Divya M.', email: 'divya.m@coaction.com', role: 'Admin', team: 'Underwriting Team', status: 'Active', lastActive: '2 min ago' },
-  { id: 'u2', name: 'Sara K.', email: 'sara.k@coaction.com', role: 'Developer', team: 'Underwriting Team', status: 'Active', lastActive: '18 min ago' },
-  { id: 'u3', name: 'Michael C.', email: 'michael.c@coaction.com', role: 'Developer', team: 'Submissions Team', status: 'Active', lastActive: '1 hr ago' },
-  { id: 'u4', name: 'Priya R.', email: 'priya.r@coaction.com', role: 'Viewer', team: 'Data Services Team', status: 'Active', lastActive: '3 hr ago' },
-  { id: 'u5', name: 'James O.', email: 'james.o@coaction.com', role: 'Developer', team: 'Policy Team', status: 'Invited', lastActive: 'Pending' },
-  { id: 'u6', name: 'Emily T.', email: 'emily.t@coaction.com', role: 'Admin', team: 'Claims Team', status: 'Active', lastActive: 'Yesterday' },
-  { id: 'u7', name: 'Raj P.', email: 'raj.p@coaction.com', role: 'Viewer', team: 'Claims Team', status: 'Suspended', lastActive: '4 days ago' },
+const tabs = [
+  { value: 'Users', label: 'Users' },
+  { value: 'Requests', label: 'Requests' },
+  { value: 'Roles', label: 'Roles' },
+  { value: 'Audit', label: 'Audit' },
 ]
-
-const INITIAL_REQUESTS = [
-  { id: 'r1', requester: 'John D.', email: 'john.d@coaction.com', target: 'FNOL API', reason: 'Broker portal FNOL intake for Q3 rollout', requestedAt: '2 hr ago' },
-  { id: 'r2', requester: 'Aditi S.', email: 'aditi.s@coaction.com', target: 'Admin role upgrade', reason: 'Managing Submissions Team onboarding', requestedAt: '5 hr ago' },
-  { id: 'r3', requester: 'Marcus H.', email: 'marcus.h@partner.com', target: 'Policy Lookup API (Read)', reason: 'External partner integration POC', requestedAt: '1 day ago' },
-]
-
-const IDENTITY_PROVIDERS = [
-  { id: 'azure', name: 'Azure Active Directory', description: 'Primary SSO for coaction.com', connected: true, users: 42 },
-  { id: 'okta', name: 'Okta', description: 'Federated identity for partners', connected: true, users: 8 },
-  { id: 'google', name: 'Google Workspace', description: 'Not currently configured', connected: false, users: 0 },
-]
-
-const API_KEYS = [
-  { id: 'k1', label: 'CI/CD — Build Pipeline', prefix: 'ck_live_9f2a…', owner: 'Underwriting Team', scope: 'Read + Publish', createdAt: '2026-06-14', lastUsed: '4 min ago' },
-  { id: 'k2', label: 'Submissions ETL Worker', prefix: 'ck_live_a71b…', owner: 'Submissions Team', scope: 'Read', createdAt: '2026-05-02', lastUsed: '32 min ago' },
-  { id: 'k3', label: 'Partner Sandbox — Marcus H.', prefix: 'ck_test_44c9…', owner: 'External', scope: 'Read (sandbox)', createdAt: '2026-08-01', lastUsed: 'Yesterday' },
-]
-
-const AUDIT_LOG = [
-  { id: 'a1', when: '2 min ago', actor: 'Divya M.', action: 'Approved access request', target: 'FNOL API — John D.' },
-  { id: 'a2', when: '18 min ago', actor: 'Sara K.', action: 'Rotated API key', target: 'ck_live_a71b… (Submissions ETL Worker)' },
-  { id: 'a3', when: '1 hr ago', actor: 'System', action: 'SSO login', target: 'michael.c@coaction.com via Azure AD' },
-  { id: 'a4', when: '3 hr ago', actor: 'Emily T.', action: 'Changed role', target: 'Priya R. → Viewer' },
-  { id: 'a5', when: 'Yesterday', actor: 'Divya M.', action: 'Suspended user', target: 'Raj P.' },
-]
-
-function Toast({ message, type }) {
-  if (!message) return null
-  const isError = type === 'error'
-  return (
-    <div
-      className="flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg"
-      style={{
-        position: 'fixed',
-        top: '1.5rem',
-        right: '1.5rem',
-        zIndex: 50,
-        backgroundColor: isError ? 'hsl(var(--destructive) / 0.12)' : 'hsl(var(--accent) / 0.18)',
-        color: isError ? 'hsl(var(--destructive))' : 'hsl(172 66% 25%)',
-        border: `1px solid ${isError ? 'hsl(var(--destructive) / 0.35)' : 'hsl(var(--accent) / 0.45)'}`,
-      }}
-    >
-      {isError ? <AlertCircle className="h-5 w-5" /> : <CheckCircle className="h-5 w-5" />}
-      <span className="text-sm font-medium">{message}</span>
-    </div>
-  )
-}
-
-function Badge({ children, style }) {
-  return (
-    <span
-      className="inline-flex items-center rounded-full text-xs font-semibold"
-      style={{ padding: '0.15rem 0.6rem', ...style }}
-    >
-      {children}
-    </span>
-  )
-}
 
 export default function Access() {
-  const { data: apis = [] } = useQuery({
-    queryKey: ['apis'],
-    queryFn: () => apiClient.getApis(),
+  const queryClient = useQueryClient()
+  const access = useQuery({ queryKey: ['access'], queryFn: api.access })
+  const [tab, setTab] = useState('Users')
+  const [selectedId, setSelectedId] = useState(null)
+  const narrow = useNarrow()
+  const statusChange = useMutation({
+    mutationFn: ({ id, status }) => api.setUserStatus(id, status),
+    onSuccess: () => {
+      toast.success('User status updated')
+      queryClient.invalidateQueries({ queryKey: ['access'] })
+    },
+    onError: () => toast.error('Unable to update user status'),
+  })
+  const decision = useMutation({
+    mutationFn: ({ id, decision: value }) => api.decideRequest(id, value),
+    onSuccess: (_data, variables) => {
+      toast.success(variables.decision === 'Approved' ? 'Request approved' : 'Request denied')
+      queryClient.invalidateQueries({ queryKey: ['access'] })
+    },
+    onError: () => toast.error('Unable to update the request'),
   })
 
-  const [users, setUsers] = useState(INITIAL_USERS)
-  const [requests, setRequests] = useState(INITIAL_REQUESTS)
-  const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState('All')
-  const [toast, setToast] = useState({ message: '', type: 'success' })
+  const selected = access.data?.users.find((user) => user.id === selectedId) || null
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === 'Escape') setSelectedId(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
-  function notify(message, type = 'success') {
-    setToast({ message, type })
-    setTimeout(() => setToast({ message: '', type: 'success' }), 2500)
-  }
+  if (access.isLoading) return <LoadingState label="Loading user access" />
+  if (access.isError) return <ErrorState title="Unable to load user access" onRetry={() => access.refetch()} />
 
-  const filteredUsers = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return users.filter((u) => {
-      const matchesRole = roleFilter === 'All' || u.role === roleFilter
-      if (!matchesRole) return false
-      if (!q) return true
-      return (
-        u.name.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q) ||
-        u.team.toLowerCase().includes(q)
-      )
-    })
-  }, [users, search, roleFilter])
-
-  const stats = useMemo(() => {
-    const admins = users.filter((u) => u.role === 'Admin').length
-    const active = users.filter((u) => u.status === 'Active').length
-    return [
-      { label: 'Total Users', value: users.length, icon: Users },
-      { label: 'Admins', value: admins, icon: Shield },
-      { label: 'Active Sessions', value: active, icon: CheckCircle },
-      { label: 'Pending Requests', value: requests.length, icon: Clock },
-    ]
-  }, [users, requests])
-
-  function approveRequest(req) {
-    setRequests((prev) => prev.filter((r) => r.id !== req.id))
-    notify(`Approved: ${req.requester} → ${req.target}`)
-  }
-
-  function denyRequest(req) {
-    setRequests((prev) => prev.filter((r) => r.id !== req.id))
-    notify(`Denied: ${req.requester} → ${req.target}`, 'error')
-  }
-
-  function changeRole(userId, nextRole) {
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: nextRole } : u)))
-    notify(`Role updated to ${nextRole}`)
-  }
-
-  function toggleSuspend(user) {
-    const nextStatus = user.status === 'Suspended' ? 'Active' : 'Suspended'
-    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, status: nextStatus } : u)))
-    notify(
-      `${user.name} ${nextStatus === 'Suspended' ? 'suspended' : 'reactivated'}`,
-      nextStatus === 'Suspended' ? 'error' : 'success',
-    )
-  }
-
-  function copyKey(prefix) {
-    navigator.clipboard?.writeText(prefix.replace('…', '')).catch(() => {})
-    notify('Key prefix copied to clipboard')
-  }
-
+  const data = access.data
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <Toast message={toast.message} type={toast.type} />
-
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Admin Access</h1>
-          <p className="text-muted">
-            Manage users, roles, API keys, and identity providers for CoAction.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => notify('Invite dialog would open here')}
-          className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white"
-          style={{ backgroundColor: 'hsl(var(--primary))' }}
-        >
-          <UserPlus className="h-4 w-4" /> Invite User
-        </button>
+    <div className="flex min-w-0 flex-col gap-5">
+      <PageHeader eyebrow="Access governance" title="User Access" description="Review users, pending requests, role permissions, and recent audit events." />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Active users" value={data.summary.activeUsers} hint="Status is Active" />
+        <MetricCard label="Pending requests" value={data.summary.pendingRequests} hint="Waiting for a decision" tone={data.summary.pendingRequests ? 'warning' : 'neutral'} />
+        <MetricCard label="Privileged users" value={data.summary.privilegedUsers} hint="Admin and API Owner" />
+        <MetricCard label="Expiring access" value={data.summary.expiringAccess} hint="Users with an end date" tone={data.summary.expiringAccess ? 'danger' : 'neutral'} />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon
-          return (
-            <div key={stat.label} className="card-base p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted mb-1">{stat.label}</p>
-                  <p className="text-3xl font-bold">{stat.value}</p>
-                </div>
-                <Icon className="h-8 w-8 text-primary opacity-70" />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 card-base p-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-            <h2 className="text-xl font-semibold">Users & Roles</h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative">
-                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search name, email, team…"
-                  className="input-base"
-                  style={{ paddingLeft: '2.25rem', minWidth: '18rem' }}
-                />
-              </div>
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="input-base"
-                style={{ minWidth: '9rem' }}
-              >
-                <option>All</option>
-                <option>Admin</option>
-                <option>Developer</option>
-                <option>Viewer</option>
-              </select>
-            </div>
-          </div>
-
-          <div
-            className="scrollable border border-border rounded-md"
-            style={{ maxHeight: '420px', overflowY: 'auto' }}
-          >
-            <table className="w-full text-sm">
-              <thead className="border-b border-border sticky top-0 bg-card" style={{ position: 'sticky', top: 0 }}>
-                <tr>
-                  <th className="pb-3 pt-3 font-bold text-left px-4">User</th>
-                  <th className="pb-3 pt-3 font-bold text-left px-4">Team</th>
-                  <th className="pb-3 pt-3 font-bold text-left px-4">Role</th>
-                  <th className="pb-3 pt-3 font-bold text-left px-4">Status</th>
-                  <th className="pb-3 pt-3 font-bold text-left px-4">Last Active</th>
-                  <th className="pb-3 pt-3 font-bold text-right px-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filteredUsers.map((u) => {
-                  const statusStyle = STATUS_STYLES[u.status]
-                  return (
-                    <tr key={u.id} className="hover:bg-muted transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="font-medium">{u.name}</div>
-                        <div className="text-xs text-muted">{u.email}</div>
-                      </td>
-                      <td className="py-3 px-4">{u.team}</td>
-                      <td className="py-3 px-4">
-                        <select
-                          value={u.role}
-                          onChange={(e) => changeRole(u.id, e.target.value)}
-                          className="rounded-full border border-border text-xs font-semibold"
-                          style={{
-                            backgroundColor: ROLE_STYLES[u.role].bg,
-                            color: ROLE_STYLES[u.role].color,
-                            padding: '0.15rem 0.6rem',
-                          }}
-                        >
-                          <option>Admin</option>
-                          <option>Developer</option>
-                          <option>Viewer</option>
-                        </select>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge style={{ backgroundColor: statusStyle.bg, color: statusStyle.color }}>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              width: '0.5rem',
-                              height: '0.5rem',
-                              borderRadius: '9999px',
-                              backgroundColor: statusStyle.dot,
-                              marginRight: '0.4rem',
-                            }}
-                          />
-                          {u.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-muted">{u.lastActive}</td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => toggleSuspend(u)}
-                          className="p-0 bg-transparent text-xs font-semibold underline"
-                          style={{
-                            color:
-                              u.status === 'Suspended'
-                                ? 'hsl(var(--primary))'
-                                : 'hsl(var(--destructive))',
-                          }}
-                        >
-                          {u.status === 'Suspended' ? 'Reactivate' : 'Suspend'}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })}
-                {filteredUsers.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-6 text-center text-muted">
-                      No users match the current filter.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card-base p-6">
-          <h2 className="text-xl font-semibold mb-4">Pending Access Requests</h2>
-          <div className="space-y-3">
-            {requests.map((req) => (
-              <div key={req.id} className="border border-border rounded-lg p-4">
+      <SegmentedControl label="Section" value={tab} onChange={setTab} options={tabs} />
+      {tab === 'Users' && (
+        narrow ? (
+          <div className="grid gap-2">
+            {data.users.map((user) => (
+              <article key={user.id} className="rounded-lg border border-line bg-surface p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium">{req.requester}</p>
-                    <p className="text-xs text-muted">{req.email}</p>
+                    <h2 className="font-semibold">{user.name}</h2>
+                    <p className="text-xs text-ink-muted">{user.email}</p>
                   </div>
-                  <span className="text-xs text-muted">{req.requestedAt}</span>
+                  <StatusBadge>{user.status}</StatusBadge>
                 </div>
-                <p className="text-sm mt-2">
-                  Requesting <span className="font-semibold">{req.target}</span>
-                </p>
-                <p className="text-xs text-muted mt-1">"{req.reason}"</p>
-                <div className="flex gap-2 mt-3">
-                  <button
-                    type="button"
-                    onClick={() => approveRequest(req)}
-                    className="inline-flex items-center gap-1 rounded-md text-xs font-semibold text-white"
-                    style={{ backgroundColor: 'hsl(var(--primary))', padding: '0.4rem 0.75rem' }}
-                  >
-                    <Check className="h-3.5 w-3.5" /> Approve
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => denyRequest(req)}
-                    className="inline-flex items-center gap-1 rounded-md text-xs font-semibold"
-                    style={{
-                      backgroundColor: 'hsl(var(--destructive) / 0.12)',
-                      color: 'hsl(var(--destructive))',
-                      padding: '0.4rem 0.75rem',
-                    }}
-                  >
-                    <X className="h-3.5 w-3.5" /> Deny
-                  </button>
-                </div>
-              </div>
+                <p className="mt-2 text-sm">{user.team} · {user.role}</p>
+                <button type="button" onClick={() => setSelectedId(user.id)} className="mt-3 rounded-md border px-3 py-1.5 text-sm font-semibold">Manage</button>
+              </article>
             ))}
-            {requests.length === 0 && (
-              <div className="text-sm text-muted text-center py-6 border border-dashed border-border rounded-lg">
-                No pending requests. You're all caught up.
-              </div>
-            )}
           </div>
+        ) : (
+          <DataTable
+            rows={data.users}
+            getRowKey={(user) => user.id}
+            columns={[
+              { key: 'name', header: 'Name', render: (user) => <div><div className="font-semibold">{user.name}</div><div className="text-xs text-ink-muted">{user.email}</div></div> },
+              { key: 'team', header: 'Team', render: (user) => user.team },
+              { key: 'role', header: 'Role', render: (user) => user.role },
+              { key: 'status', header: 'Status', render: (user) => <StatusBadge>{user.status}</StatusBadge> },
+              { key: 'action', header: 'Action', render: (user) => <button type="button" onClick={() => setSelectedId(user.id)} className="rounded-md border px-3 py-1 text-sm font-semibold">Manage</button> },
+            ]}
+          />
+        )
+      )}
+      {tab === 'Requests' && (
+        <div className="grid gap-3">
+          {data.requests.map((request) => {
+            const pending = decision.isPending && decision.variables?.id === request.id
+            return (
+              <article key={request.id} className="rounded-lg border border-line bg-surface p-4 text-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="font-bold">{request.requester} · {request.api}</div>
+                    <div className="text-ink-muted">{request.reason}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{request.team} · {request.accessType} · {request.requestedAt}</div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge tone={request.risk === 'High' ? 'danger' : request.risk === 'Medium' ? 'warning' : 'neutral'}>{request.risk} risk</StatusBadge>
+                    <StatusBadge>{request.status}</StatusBadge>
+                    {request.status === 'Pending' && (
+                      <>
+                        <button type="button" disabled={pending} onClick={() => decision.mutate({ id: request.id, decision: 'Approved' })} className="rounded-md bg-navy px-3 py-1.5 text-white disabled:opacity-60">{pending ? 'Saving…' : 'Approve'}</button>
+                        <button type="button" disabled={pending} onClick={() => decision.mutate({ id: request.id, decision: 'Denied' })} className="rounded-md border px-3 py-1.5 disabled:opacity-60">Deny</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
-      </div>
-
-      <div className="card-base p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Recent Access Activity</h2>
-          <span className="text-xs text-muted">Every action is audit-logged</span>
+      )}
+      {tab === 'Roles' && (
+        <DataTable
+          minWidth="720px"
+          rows={data.roles}
+          getRowKey={(role) => role.role}
+          columns={[
+            { key: 'role', header: 'Role', render: (role) => <span className="font-semibold">{role.role}</span> },
+            { key: 'docs', header: 'Docs', render: (role) => <Permission value={role.docs} /> },
+            { key: 'tryIt', header: 'Try It', render: (role) => <Permission value={role.tryIt} /> },
+            { key: 'publish', header: 'Publish', render: (role) => <Permission value={role.publish} /> },
+            { key: 'approve', header: 'Approve', render: (role) => <Permission value={role.approve} /> },
+            { key: 'admin', header: 'Admin', render: (role) => <Permission value={role.admin} /> },
+          ]}
+        />
+      )}
+      {tab === 'Audit' && (
+        <DataTable
+          rows={data.audit}
+          getRowKey={(event) => event.id}
+          columns={[
+            { key: 'when', header: 'When', render: (event) => event.when },
+            { key: 'actor', header: 'Actor', render: (event) => event.actor },
+            { key: 'action', header: 'Action', render: (event) => event.action },
+            { key: 'target', header: 'Target', render: (event) => event.target },
+            { key: 'result', header: 'Result', render: (event) => <StatusBadge tone={statusToneFor(event.result)}>{event.result}</StatusBadge> },
+          ]}
+        />
+      )}
+      {selected && (
+        <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/40">
+          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close user panel" onClick={() => setSelectedId(null)} />
+          <aside role="dialog" aria-modal="true" aria-labelledby="manage-user-title" className="relative h-full w-full max-w-md overflow-y-auto bg-surface p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="manage-user-title" className="text-2xl font-bold">{selected.name}</h2>
+                <p className="text-sm text-ink-muted">{selected.access}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedId(null)} className="rounded-md border px-3 py-1 text-sm font-semibold">Close</button>
+            </div>
+            <dl className="mt-4 grid gap-2 text-sm">
+              <div><dt className="text-xs uppercase text-ink-muted">Status</dt><dd><StatusBadge>{selected.status}</StatusBadge></dd></div>
+              <div><dt className="text-xs uppercase text-ink-muted">Role</dt><dd>{selected.role} · {selected.team}</dd></div>
+              <div><dt className="text-xs uppercase text-ink-muted">Expires</dt><dd>{selected.expires}</dd></div>
+              <div><dt className="text-xs uppercase text-ink-muted">APIs</dt><dd>{selected.apis?.length ? selected.apis.join(', ') : 'None assigned'}</dd></div>
+            </dl>
+            <button
+              type="button"
+              disabled={statusChange.isPending}
+              onClick={() => statusChange.mutate({ id: selected.id, status: selected.status === 'Suspended' ? 'Active' : 'Suspended' })}
+              className="mt-5 rounded-md bg-navy px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {statusChange.isPending ? 'Saving…' : selected.status === 'Suspended' ? 'Reactivate' : 'Suspend'}
+            </button>
+          </aside>
         </div>
-        <div
-          className="scrollable border border-border rounded-md"
-          style={{ maxHeight: '320px', overflowY: 'auto' }}
-        >
-          <table className="w-full text-sm">
-            <thead className="border-b border-border sticky top-0 bg-card" style={{ position: 'sticky', top: 0 }}>
-              <tr>
-                <th className="pb-3 pt-3 font-bold text-left px-4">When</th>
-                <th className="pb-3 pt-3 font-bold text-left px-4">Actor</th>
-                <th className="pb-3 pt-3 font-bold text-left px-4">Action</th>
-                <th className="pb-3 pt-3 font-bold text-left px-4">Target</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {AUDIT_LOG.map((row) => (
-                <tr key={row.id} className="hover:bg-muted transition-colors">
-                  <td className="py-3 px-4 text-muted">{row.when}</td>
-                  <td className="py-3 px-4 font-medium">{row.actor}</td>
-                  <td className="py-3 px-4">{row.action}</td>
-                  <td className="py-3 px-4 text-muted">{row.target}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {apis.length > 0 && (
-          <p className="text-xs text-muted mt-3">
-            Governing access across {apis.length} catalog APIs and{' '}
-            {new Set(apis.map((a) => a.owner)).size} owning teams.
-          </p>
-        )}
-      </div>
+      )}
     </div>
   )
+}
+
+function Permission({ value }) {
+  const text = String(value)
+  const normalized = text.toLowerCase()
+  if (normalized === 'yes') return <span className="inline-flex items-center gap-1 text-teal-900"><Check className="h-4 w-4" aria-hidden="true" /> Yes</span>
+  if (normalized === 'no') return <span className="inline-flex items-center gap-1 text-red-900"><X className="h-4 w-4" aria-hidden="true" /> No</span>
+  return <span className="inline-flex items-center gap-1 text-amber-950"><Minus className="h-4 w-4" aria-hidden="true" /> {text}</span>
 }

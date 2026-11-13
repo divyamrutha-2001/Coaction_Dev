@@ -1,0 +1,256 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Appetite Check API",
+    "version": "v1.0",
+    "description": "Evaluates whether a submission fits underwriting appetite and whether referral is required.",
+    "x-domain": "Underwriting & Submissions",
+    "x-owner": "Underwriting & Submissions Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 3,
+    "x-document": {
+      "purpose": "Evaluates whether a submission fits underwriting appetite and whether referral is required.",
+      "whenToUse": "Use this before quoting to confirm whether an account fits underwriting appetite.",
+      "notes": [
+        "A referral-required result should route the account to underwriting review.",
+        "Reasons explain why an account is outside straight-through processing."
+      ],
+      "errors": [
+        "Unsupported industry or state",
+        "Missing line of business",
+        "Invalid NAICS code"
+      ],
+      "owner": "Underwriting & Submissions Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Checks whether a submitted risk fits the carrier's underwriting appetite based on key business factors.",
+        "evaluates": [
+          "Line of business and industry type",
+          "Geographic location and territory",
+          "Company revenue and financial stability",
+          "Prior loss history and claims"
+        ],
+        "returns": [
+          "Accept, Refer, or Decline decision",
+          "Business reasons for the decision"
+        ]
+      },
+      "Developer": {
+        "summary": "Evaluates underwriting appetite using risk parameters and returns an accept/refer/decline decision with HTTP 200 or 400.",
+        "evaluates": [
+          "Line of business, industry, geography",
+          "Annual revenue and loss experience",
+          "Request schema validation",
+          "401 on missing auth, 429 on rate limit"
+        ],
+        "returns": [
+          "JSON with decision, score, and explanation",
+          "Idempotent on retry with same idempotency-key"
+        ]
+      },
+      "Partner": {
+        "summary": "Post risk details to check appetite. Returns a decision plus referral rules.",
+        "evaluates": [
+          "Business type and location",
+          "Financial metrics and loss history"
+        ],
+        "returns": [
+          "Decision (Accept/Refer/Decline)",
+          "Referral instructions if applicable"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [],
+      "request": [
+        {
+          "name": "lineOfBusiness",
+          "type": "string",
+          "required": true,
+          "description": "Insurance line of business for the request or response.",
+          "example": "General Liability"
+        },
+        {
+          "name": "industry",
+          "type": "string",
+          "required": true,
+          "description": "Industry classification used for underwriting decisions.",
+          "example": "Manufacturing"
+        },
+        {
+          "name": "naicsCode",
+          "type": "string",
+          "required": true,
+          "description": "NAICS industry code used in underwriting evaluation.",
+          "example": "332710"
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "required": true,
+          "description": "US state for rating, appetite, exposure, or reference-data lookup.",
+          "example": "NJ"
+        },
+        {
+          "name": "annualRevenue",
+          "type": "integer",
+          "required": false,
+          "description": "Annual business revenue used for underwriting and appetite decisions.",
+          "example": "25000000"
+        },
+        {
+          "name": "priorLossCount",
+          "type": "integer",
+          "required": false,
+          "description": "Number of prior losses used in underwriting or scoring.",
+          "example": "2"
+        }
+      ],
+      "response": [
+        {
+          "name": "appetite",
+          "type": "string",
+          "required": true,
+          "description": "Underwriting appetite result returned by the appetite service.",
+          "example": "ACCEPTABLE"
+        },
+        {
+          "name": "score",
+          "type": "integer",
+          "required": true,
+          "description": "Numeric score returned by the service.",
+          "example": "84"
+        },
+        {
+          "name": "referralRequired",
+          "type": "boolean",
+          "required": true,
+          "description": "Indicates whether underwriting referral is required.",
+          "example": "false"
+        },
+        {
+          "name": "reasons",
+          "type": "array",
+          "required": true,
+          "description": "Reasons explaining the appetite or referral result.",
+          "example": "[]"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/underwriting/appetite": {
+      "post": {
+        "operationId": "appetite-check-api",
+        "summary": "Evaluates whether a submission fits underwriting appetite and whether referral is required.",
+        "tags": [
+          "Production",
+          "REST",
+          "Underwriting & Submissions"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Use this before quoting to confirm whether an account fits underwriting appetite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "appetite": {
+                      "type": "string",
+                      "example": "ACCEPTABLE"
+                    },
+                    "score": {
+                      "type": "integer",
+                      "example": 84
+                    },
+                    "referralRequired": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "appetite",
+                    "score",
+                    "referralRequired",
+                    "reasons"
+                  ]
+                },
+                "example": {
+                  "appetite": "ACCEPTABLE",
+                  "score": 84,
+                  "referralRequired": false,
+                  "reasons": []
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lineOfBusiness": {
+                    "type": "string",
+                    "example": "General Liability"
+                  },
+                  "industry": {
+                    "type": "string",
+                    "example": "Manufacturing"
+                  },
+                  "naicsCode": {
+                    "type": "string",
+                    "example": "332710"
+                  },
+                  "state": {
+                    "type": "string",
+                    "example": "NJ"
+                  },
+                  "annualRevenue": {
+                    "type": "integer",
+                    "example": 25000000
+                  },
+                  "priorLossCount": {
+                    "type": "integer",
+                    "example": 2
+                  }
+                },
+                "required": [
+                  "lineOfBusiness",
+                  "industry",
+                  "naicsCode",
+                  "state"
+                ]
+              },
+              "example": {
+                "lineOfBusiness": "General Liability",
+                "industry": "Manufacturing",
+                "naicsCode": "332710",
+                "state": "NJ",
+                "annualRevenue": 25000000,
+                "priorLossCount": 2
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

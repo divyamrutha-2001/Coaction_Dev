@@ -1,0 +1,228 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Exposure API",
+    "version": "v1.0",
+    "description": "Retrieves insured exposures such as locations, payroll, vehicles or other LOB-specific exposure units.",
+    "x-domain": "Risk & Exposure",
+    "x-owner": "Risk & Exposure Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 2,
+    "x-document": {
+      "purpose": "Retrieves insured exposures such as locations, payroll, vehicles or other LOB-specific exposure units.",
+      "whenToUse": "Use this to retrieve policy exposure locations and rating characteristics.",
+      "notes": [
+        "Exposure records may include multiple insured locations.",
+        "Use location IDs when reconciling downstream data."
+      ],
+      "errors": [
+        "Policy not found",
+        "No exposures available for policy"
+      ],
+      "owner": "Risk & Exposure Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Retrieves all insured exposures (locations, vehicles, payroll, etc.) for a policy.",
+        "evaluates": [
+          "Policy number",
+          "Exposure type (location, vehicle, payroll)"
+        ],
+        "returns": [
+          "List of all exposures with addresses and details",
+          "Limit and deductible for each exposure"
+        ]
+      },
+      "Developer": {
+        "summary": "Fetches exposure data for a policy. Returns a paginated array of exposure objects or 404 if policy not found.",
+        "evaluates": [
+          "Policy number format and existence",
+          "Query parameters (limit, offset)"
+        ],
+        "returns": [
+          "HTTP 200 with exposure array and pagination info",
+          "Caching via ETag and Cache-Control headers"
+        ]
+      },
+      "Partner": {
+        "summary": "Get all exposures (buildings, vehicles, etc.) for a policy by number.",
+        "evaluates": [
+          "Policy number"
+        ],
+        "returns": [
+          "Array of exposures with details"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "policyNumber",
+          "type": "string",
+          "required": true,
+          "description": "policyNumber path parameter used to identify the target resource.",
+          "example": "POL-2026-98765"
+        }
+      ],
+      "request": [],
+      "response": [
+        {
+          "name": "policyNumber",
+          "type": "string",
+          "required": true,
+          "description": "Policy identifier assigned by the policy administration system.",
+          "example": "POL-2026-98765"
+        },
+        {
+          "name": "exposures",
+          "type": "object[]",
+          "required": true,
+          "description": "Value for exposures.",
+          "example": "[{\"locationId\":\"LOC-001\",\"address\":\"100 Industrial Way, Newark, NJ\",\"classCode\":\"91580\",\"payroll\":4200000,\"employeeCount\":85},{\"locationId\":\"LOC-002\",\"address\":\"25 Commerce Drive, Edison, NJ\",\"classCode\":\"91580\",\"payroll\":3100000,\"employeeCount\":62}]"
+        },
+        {
+          "name": "exposures[].locationId",
+          "type": "string",
+          "required": true,
+          "description": "Exposure location identifier.",
+          "example": "LOC-001"
+        },
+        {
+          "name": "exposures[].address",
+          "type": "string",
+          "required": true,
+          "description": "Insured or exposure location address.",
+          "example": "100 Industrial Way, Newark, NJ"
+        },
+        {
+          "name": "exposures[].classCode",
+          "type": "string",
+          "required": true,
+          "description": "Insurance class code associated with an exposure or reference-data result.",
+          "example": "91580"
+        },
+        {
+          "name": "exposures[].payroll",
+          "type": "integer",
+          "required": true,
+          "description": "Payroll amount associated with an exposure location.",
+          "example": "4200000"
+        },
+        {
+          "name": "exposures[].employeeCount",
+          "type": "integer",
+          "required": true,
+          "description": "Number of employees used for risk scoring or exposure data.",
+          "example": "85"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/policies/{policyNumber}/exposures": {
+      "get": {
+        "operationId": "exposure-api",
+        "summary": "Retrieves insured exposures such as locations, payroll, vehicles or other LOB-specific exposure units.",
+        "tags": [
+          "Production",
+          "REST",
+          "Risk & Exposure"
+        ],
+        "parameters": [
+          {
+            "name": "policyNumber",
+            "in": "path",
+            "required": true,
+            "description": "policyNumber identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "POL-2026-98765"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use this to retrieve policy exposure locations and rating characteristics.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "policyNumber": {
+                      "type": "string",
+                      "example": "POL-2026-98765"
+                    },
+                    "exposures": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "locationId": {
+                            "type": "string",
+                            "example": "LOC-001"
+                          },
+                          "address": {
+                            "type": "string",
+                            "example": "100 Industrial Way, Newark, NJ"
+                          },
+                          "classCode": {
+                            "type": "string",
+                            "example": "91580"
+                          },
+                          "payroll": {
+                            "type": "integer",
+                            "example": 4200000
+                          },
+                          "employeeCount": {
+                            "type": "integer",
+                            "example": 85
+                          }
+                        },
+                        "required": [
+                          "locationId",
+                          "address",
+                          "classCode",
+                          "payroll",
+                          "employeeCount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "policyNumber",
+                    "exposures"
+                  ]
+                },
+                "example": {
+                  "policyNumber": "POL-2026-98765",
+                  "exposures": [
+                    {
+                      "locationId": "LOC-001",
+                      "address": "100 Industrial Way, Newark, NJ",
+                      "classCode": "91580",
+                      "payroll": 4200000,
+                      "employeeCount": 85
+                    },
+                    {
+                      "locationId": "LOC-002",
+                      "address": "25 Commerce Drive, Edison, NJ",
+                      "classCode": "91580",
+                      "payroll": 3100000,
+                      "employeeCount": 62
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

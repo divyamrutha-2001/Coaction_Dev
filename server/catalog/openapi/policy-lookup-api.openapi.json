@@ -1,0 +1,210 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Policy Lookup API",
+    "version": "v1.0",
+    "description": "Retrieves the current policy header, insured, term and premium information.",
+    "x-domain": "Policy Administration",
+    "x-owner": "Policy Administration Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 6,
+    "x-document": {
+      "purpose": "Retrieves the current policy header, insured, term and premium information.",
+      "whenToUse": "Use this to retrieve current policy-level details.",
+      "notes": [
+        "This is a read-only policy lookup.",
+        "Policy number is required in the path."
+      ],
+      "errors": [
+        "Policy not found",
+        "User does not have policy access"
+      ],
+      "owner": "Policy Administration Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Retrieves the current policy details including coverage, premium, and insured information.",
+        "evaluates": [
+          "Policy number"
+        ],
+        "returns": [
+          "Policy header with insured name and address",
+          "Premium, term dates, and coverage summary"
+        ]
+      },
+      "Developer": {
+        "summary": "Fetches a policy by number. Returns 404 if not found. Supports ETag caching.",
+        "evaluates": [
+          "Policy number format and existence"
+        ],
+        "returns": [
+          "HTTP 200 with full policy object",
+          "ETag header for conditional requests"
+        ]
+      },
+      "Partner": {
+        "summary": "Look up a policy by number. Returns policy details and coverage info.",
+        "evaluates": [
+          "Policy number"
+        ],
+        "returns": [
+          "Policy details and insured info"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "policyNumber",
+          "type": "string",
+          "required": true,
+          "description": "policyNumber path parameter used to identify the target resource.",
+          "example": "POL-2026-98765"
+        }
+      ],
+      "request": [],
+      "response": [
+        {
+          "name": "policyNumber",
+          "type": "string",
+          "required": true,
+          "description": "Policy identifier assigned by the policy administration system.",
+          "example": "POL-2026-98765"
+        },
+        {
+          "name": "insuredName",
+          "type": "string",
+          "required": true,
+          "description": "Named insured business or account name.",
+          "example": "Acme Manufacturing Inc."
+        },
+        {
+          "name": "lineOfBusiness",
+          "type": "string",
+          "required": true,
+          "description": "Insurance line of business for the request or response.",
+          "example": "General Liability"
+        },
+        {
+          "name": "effectiveDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the policy, quote, or bind action becomes effective.",
+          "example": "2026-10-01"
+        },
+        {
+          "name": "expirationDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the quote or policy expires.",
+          "example": "2027-10-01"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "ACTIVE"
+        },
+        {
+          "name": "writtenPremium",
+          "type": "integer",
+          "required": true,
+          "description": "Written premium on the policy.",
+          "example": "185000"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/policies/{policyNumber}": {
+      "get": {
+        "operationId": "policy-lookup-api",
+        "summary": "Retrieves the current policy header, insured, term and premium information.",
+        "tags": [
+          "Production",
+          "REST",
+          "Policy Administration"
+        ],
+        "parameters": [
+          {
+            "name": "policyNumber",
+            "in": "path",
+            "required": true,
+            "description": "policyNumber identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "POL-2026-98765"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use this to retrieve current policy-level details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "policyNumber": {
+                      "type": "string",
+                      "example": "POL-2026-98765"
+                    },
+                    "insuredName": {
+                      "type": "string",
+                      "example": "Acme Manufacturing Inc."
+                    },
+                    "lineOfBusiness": {
+                      "type": "string",
+                      "example": "General Liability"
+                    },
+                    "effectiveDate": {
+                      "type": "string",
+                      "example": "2026-10-01"
+                    },
+                    "expirationDate": {
+                      "type": "string",
+                      "example": "2027-10-01"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "ACTIVE"
+                    },
+                    "writtenPremium": {
+                      "type": "integer",
+                      "example": 185000
+                    }
+                  },
+                  "required": [
+                    "policyNumber",
+                    "insuredName",
+                    "lineOfBusiness",
+                    "effectiveDate",
+                    "expirationDate",
+                    "status",
+                    "writtenPremium"
+                  ]
+                },
+                "example": {
+                  "policyNumber": "POL-2026-98765",
+                  "insuredName": "Acme Manufacturing Inc.",
+                  "lineOfBusiness": "General Liability",
+                  "effectiveDate": "2026-10-01",
+                  "expirationDate": "2027-10-01",
+                  "status": "ACTIVE",
+                  "writtenPremium": 185000
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

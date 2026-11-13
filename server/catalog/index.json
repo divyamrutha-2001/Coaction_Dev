@@ -1,0 +1,92 @@
+[
+  {
+    "file": "create-submission-api.openapi.json",
+    "name": "Create Submission API",
+    "method": "POST",
+    "path": "/api/v1/submissions"
+  },
+  {
+    "file": "submission-status-api.openapi.json",
+    "name": "Submission Status API",
+    "method": "GET",
+    "path": "/api/v1/submissions/{id}/status"
+  },
+  {
+    "file": "submission-documents-api.openapi.json",
+    "name": "Submission Documents API",
+    "method": "POST",
+    "path": "/api/v1/submissions/{id}/documents"
+  },
+  {
+    "file": "appetite-check-api.openapi.json",
+    "name": "Appetite Check API",
+    "method": "POST",
+    "path": "/api/v1/underwriting/appetite"
+  },
+  {
+    "file": "risk-score-api.openapi.json",
+    "name": "Risk Score API",
+    "method": "POST",
+    "path": "/api/v1/underwriting/risk-score"
+  },
+  {
+    "file": "quote-api.openapi.json",
+    "name": "Quote API",
+    "method": "POST",
+    "path": "/api/v1/quotes"
+  },
+  {
+    "file": "bind-api.openapi.json",
+    "name": "Bind API",
+    "method": "POST",
+    "path": "/api/v1/quotes/{id}/bind"
+  },
+  {
+    "file": "policy-lookup-api.openapi.json",
+    "name": "Policy Lookup API",
+    "method": "GET",
+    "path": "/api/v1/policies/{policyNumber}"
+  },
+  {
+    "file": "exposure-api.openapi.json",
+    "name": "Exposure API",
+    "method": "GET",
+    "path": "/api/v1/policies/{policyNumber}/exposures"
+  },
+  {
+    "file": "fnol-api.openapi.json",
+    "name": "FNOL API",
+    "method": "POST",
+    "path": "/api/v1/claims/fnol"
+  },
+  {
+    "file": "claim-status-api.openapi.json",
+    "name": "Claim Status API",
+    "method": "GET",
+    "path": "/api/v1/claims/{claimNumber}/status"
+  },
+  {
+    "file": "claim-reserve-api.openapi.json",
+    "name": "Claim Reserve API",
+    "method": "POST",
+    "path": "/api/v1/claims/{claimNumber}/reserves"
+  },
+  {
+    "file": "claim-payment-api.openapi.json",
+    "name": "Claim Payment API",
+    "method": "POST",
+    "path": "/api/v1/claims/{claimNumber}/payments"
+  },
+  {
+    "file": "loss-run-api.openapi.json",
+    "name": "Loss Run API",
+    "method": "GET",
+    "path": "/api/v1/accounts/{accountId}/loss-runs"
+  },
+  {
+    "file": "reference-data-api.openapi.json",
+    "name": "Reference Data API",
+    "method": "GET",
+    "path": "/api/v1/reference/class-codes"
+  }
+]

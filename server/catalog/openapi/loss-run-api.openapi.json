@@ -1,0 +1,257 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Loss Run API",
+    "version": "v1.0",
+    "description": "Returns historical claims and loss experience as of a specified valuation date.",
+    "x-domain": "Risk & Exposure",
+    "x-owner": "Risk & Exposure Team",
+    "x-lifecycle": "Draft",
+    "x-consumers": 2,
+    "x-document": {
+      "purpose": "Returns historical claims and loss experience as of a specified valuation date.",
+      "whenToUse": "Use this to retrieve claim history for an account.",
+      "notes": [
+        "Valuation date controls the point-in-time claim totals.",
+        "Loss runs may contain sensitive claims information."
+      ],
+      "errors": [
+        "Account not found",
+        "No loss history available",
+        "User does not have account access"
+      ],
+      "owner": "Risk & Exposure Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Retrieves historical loss data for an account to assess past claims experience.",
+        "evaluates": [
+          "Account ID",
+          "Valuation date"
+        ],
+        "returns": [
+          "List of prior claims with dates and amounts",
+          "Total losses and frequency metrics"
+        ]
+      },
+      "Developer": {
+        "summary": "Fetches loss run data for an account as of a specific date. Returns a loss run object with claims array.",
+        "evaluates": [
+          "Account exists and is accessible",
+          "Valuation date parameter"
+        ],
+        "returns": [
+          "HTTP 200 with loss run and claims array",
+          "Sorted by claim date descending"
+        ]
+      },
+      "Partner": {
+        "summary": "Get loss history for an account. See prior claims and total loss amounts.",
+        "evaluates": [
+          "Account ID and valuation date"
+        ],
+        "returns": [
+          "List of prior claims",
+          "Loss totals"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "accountId",
+          "type": "string",
+          "required": true,
+          "description": "accountId path parameter used to identify the target resource.",
+          "example": "ACC-10045"
+        }
+      ],
+      "request": [],
+      "response": [
+        {
+          "name": "accountId",
+          "type": "string",
+          "required": true,
+          "description": "Account identifier used to request account-level insurance data.",
+          "example": "ACC-10045"
+        },
+        {
+          "name": "valuationDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date as of which loss-run values are calculated.",
+          "example": "2026-08-17"
+        },
+        {
+          "name": "claims",
+          "type": "object[]",
+          "required": true,
+          "description": "Claim records included in the loss run response.",
+          "example": "[{\"claimNumber\":\"CLM-2025-10014\",\"dateOfLoss\":\"2025-03-11\",\"status\":\"CLOSED\",\"paid\":85000,\"reserve\":0,\"totalIncurred\":85000},{\"claimNumber\":\"CLM-2026-45021\",\"dateOfLoss\":\"2026-08-15\",\"status\":\"OPEN\",\"paid\":15000,\"reserve\":125000,\"totalIncurred\":140000}]"
+        },
+        {
+          "name": "claims[].claimNumber",
+          "type": "string",
+          "required": true,
+          "description": "Claim identifier assigned by the claims system.",
+          "example": "CLM-2025-10014"
+        },
+        {
+          "name": "claims[].dateOfLoss",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the loss occurred.",
+          "example": "2025-03-11"
+        },
+        {
+          "name": "claims[].status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "CLOSED"
+        },
+        {
+          "name": "claims[].paid",
+          "type": "integer",
+          "required": true,
+          "description": "Amount paid on a claim.",
+          "example": "85000"
+        },
+        {
+          "name": "claims[].reserve",
+          "type": "integer",
+          "required": true,
+          "description": "Current claim reserve amount.",
+          "example": "0"
+        },
+        {
+          "name": "claims[].totalIncurred",
+          "type": "integer",
+          "required": true,
+          "description": "Paid plus reserved amount for a claim.",
+          "example": "85000"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/accounts/{accountId}/loss-runs": {
+      "get": {
+        "operationId": "loss-run-api",
+        "summary": "Returns historical claims and loss experience as of a specified valuation date.",
+        "tags": [
+          "Production",
+          "REST",
+          "Risk & Exposure"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "description": "accountId identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "ACC-10045"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use this to retrieve claim history for an account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accountId": {
+                      "type": "string",
+                      "example": "ACC-10045"
+                    },
+                    "valuationDate": {
+                      "type": "string",
+                      "example": "2026-08-17"
+                    },
+                    "claims": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "claimNumber": {
+                            "type": "string",
+                            "example": "CLM-2025-10014"
+                          },
+                          "dateOfLoss": {
+                            "type": "string",
+                            "example": "2025-03-11"
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "CLOSED"
+                          },
+                          "paid": {
+                            "type": "integer",
+                            "example": 85000
+                          },
+                          "reserve": {
+                            "type": "integer",
+                            "example": 0
+                          },
+                          "totalIncurred": {
+                            "type": "integer",
+                            "example": 85000
+                          }
+                        },
+                        "required": [
+                          "claimNumber",
+                          "dateOfLoss",
+                          "status",
+                          "paid",
+                          "reserve",
+                          "totalIncurred"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "accountId",
+                    "valuationDate",
+                    "claims"
+                  ]
+                },
+                "example": {
+                  "accountId": "ACC-10045",
+                  "valuationDate": "2026-08-17",
+                  "claims": [
+                    {
+                      "claimNumber": "CLM-2025-10014",
+                      "dateOfLoss": "2025-03-11",
+                      "status": "CLOSED",
+                      "paid": 85000,
+                      "reserve": 0,
+                      "totalIncurred": 85000
+                    },
+                    {
+                      "claimNumber": "CLM-2026-45021",
+                      "dateOfLoss": "2026-08-15",
+                      "status": "OPEN",
+                      "paid": 15000,
+                      "reserve": 125000,
+                      "totalIncurred": 140000
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

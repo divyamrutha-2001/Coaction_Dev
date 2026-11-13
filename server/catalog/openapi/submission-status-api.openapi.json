@@ -1,0 +1,185 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Submission Status API",
+    "version": "v1.0",
+    "description": "Returns current workflow status, underwriting assignment and priority for a submission.",
+    "x-domain": "Underwriting & Submissions",
+    "x-owner": "Underwriting & Submissions Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 4,
+    "x-document": {
+      "purpose": "Returns current workflow status, underwriting assignment and priority for a submission.",
+      "whenToUse": "Use this to check where a submission is in the underwriting workflow.",
+      "notes": [
+        "This is a read-only lookup.",
+        "The priority and underwriter fields help route follow-up work."
+      ],
+      "errors": [
+        "Submission ID not found",
+        "User does not have access to the submission"
+      ],
+      "owner": "Underwriting & Submissions Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Tells you where a submission currently sits in underwriting — who owns it, what stage it has reached, and how urgent it is.",
+        "evaluates": [
+          "Submission ID"
+        ],
+        "returns": [
+          "Current workflow stage",
+          "Assigned underwriter and next steps"
+        ]
+      },
+      "Developer": {
+        "summary": "Fetches the current submission state by ID. Returns 404 if not found. Supports ETag caching with 304 Not Modified.",
+        "evaluates": [
+          "Submission ID parameter",
+          "If-None-Match header for conditional requests"
+        ],
+        "returns": [
+          "HTTP 200 with submission status object",
+          "ETag and Cache-Control headers"
+        ]
+      },
+      "Partner": {
+        "summary": "Check where your submission is in the underwriting process.",
+        "evaluates": [
+          "Submission ID"
+        ],
+        "returns": [
+          "Current status and owner",
+          "Estimated next action date"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "id",
+          "type": "string",
+          "required": true,
+          "description": "id path parameter used to identify the target resource.",
+          "example": "SUB-2026-10452"
+        }
+      ],
+      "request": [],
+      "response": [
+        {
+          "name": "submissionId",
+          "type": "string",
+          "required": true,
+          "description": "Submission identifier assigned by the submissions system.",
+          "example": "SUB-2026-10452"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "UNDER_REVIEW"
+        },
+        {
+          "name": "underwriter",
+          "type": "string",
+          "required": true,
+          "description": "Underwriter assigned to the submission.",
+          "example": "Jane Smith"
+        },
+        {
+          "name": "priority",
+          "type": "string",
+          "required": true,
+          "description": "Workflow or underwriting priority.",
+          "example": "HIGH"
+        },
+        {
+          "name": "lastUpdated",
+          "type": "date-time string",
+          "required": true,
+          "description": "Timestamp when the status was last updated.",
+          "example": "2026-08-17T15:10:00Z"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/submissions/{id}/status": {
+      "get": {
+        "operationId": "submission-status-api",
+        "summary": "Returns current workflow status, underwriting assignment and priority for a submission.",
+        "tags": [
+          "Production",
+          "REST"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "id identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "SUB-2026-10452"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use this to check where a submission is in the underwriting workflow.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "submissionId": {
+                      "type": "string",
+                      "example": "SUB-2026-10452"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "UNDER_REVIEW"
+                    },
+                    "underwriter": {
+                      "type": "string",
+                      "example": "Jane Smith"
+                    },
+                    "priority": {
+                      "type": "string",
+                      "example": "HIGH"
+                    },
+                    "lastUpdated": {
+                      "type": "string",
+                      "example": "2026-08-17T15:10:00Z"
+                    }
+                  },
+                  "required": [
+                    "submissionId",
+                    "status",
+                    "underwriter",
+                    "priority",
+                    "lastUpdated"
+                  ]
+                },
+                "example": {
+                  "submissionId": "SUB-2026-10452",
+                  "status": "UNDER_REVIEW",
+                  "underwriter": "Jane Smith",
+                  "priority": "HIGH",
+                  "lastUpdated": "2026-08-17T15:10:00Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

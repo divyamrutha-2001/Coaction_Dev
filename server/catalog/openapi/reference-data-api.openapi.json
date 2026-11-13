@@ -1,0 +1,192 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Reference Data API",
+    "version": "v1.0",
+    "description": "Provides governed reference values such as class codes, coverage codes, territories and state-specific values.",
+    "x-domain": "Actuarial Pricing & Modeling",
+    "x-owner": "Actuarial Pricing & Modeling Team",
+    "x-lifecycle": "Draft",
+    "x-consumers": 5,
+    "x-document": {
+      "purpose": "Provides governed reference values such as class codes, coverage codes, territories and state-specific values.",
+      "whenToUse": "Use this to retrieve approved class codes and reference values.",
+      "notes": [
+        "Reference data is generally read-only.",
+        "Consumers should cache stable reference values where allowed."
+      ],
+      "errors": [
+        "Unsupported state",
+        "Unsupported line of business"
+      ],
+      "owner": "Actuarial Pricing & Modeling Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Retrieves the current lookup tables for class codes, coverage codes, and territories.",
+        "evaluates": [
+          "Reference type (class, coverage, territory)"
+        ],
+        "returns": [
+          "List of valid codes and descriptions",
+          "Effective and expiration dates for each"
+        ]
+      },
+      "Developer": {
+        "summary": "Serves reference data for form dropdowns. Cached and ETag-validated. Returns 304 if unchanged.",
+        "evaluates": [
+          "Query parameters for filtering"
+        ],
+        "returns": [
+          "HTTP 200 with reference array",
+          "Cache-Control: max-age=86400"
+        ]
+      },
+      "Partner": {
+        "summary": "Get lookup tables for class codes, coverage types, and territories.",
+        "evaluates": [
+          "Reference type requested"
+        ],
+        "returns": [
+          "List of codes and labels"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [],
+      "request": [],
+      "response": [
+        {
+          "name": "lineOfBusiness",
+          "type": "string",
+          "required": true,
+          "description": "Insurance line of business for the request or response.",
+          "example": "Workers Compensation"
+        },
+        {
+          "name": "state",
+          "type": "string",
+          "required": true,
+          "description": "US state for rating, appetite, exposure, or reference-data lookup.",
+          "example": "NJ"
+        },
+        {
+          "name": "classCodes",
+          "type": "object[]",
+          "required": true,
+          "description": "Class-code records returned for the requested line of business and state.",
+          "example": "[{\"code\":\"8810\",\"description\":\"Clerical Office Employees\",\"effectiveDate\":\"2026-01-01\"},{\"code\":\"8742\",\"description\":\"Outside Sales Employees\",\"effectiveDate\":\"2026-01-01\"}]"
+        },
+        {
+          "name": "classCodes[].code",
+          "type": "string",
+          "required": true,
+          "description": "Reference-data code value.",
+          "example": "8810"
+        },
+        {
+          "name": "classCodes[].description",
+          "type": "string",
+          "required": true,
+          "description": "Human-readable description of the record or event.",
+          "example": "Clerical Office Employees"
+        },
+        {
+          "name": "classCodes[].effectiveDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the policy, quote, or bind action becomes effective.",
+          "example": "2026-01-01"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/reference/class-codes": {
+      "get": {
+        "operationId": "reference-data-api",
+        "summary": "Provides governed reference values such as class codes, coverage codes, territories and state-specific values.",
+        "tags": [
+          "Production",
+          "REST",
+          "Actuarial Pricing & Modeling"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Use this to retrieve approved class codes and reference values.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "lineOfBusiness": {
+                      "type": "string",
+                      "example": "Workers Compensation"
+                    },
+                    "state": {
+                      "type": "string",
+                      "example": "NJ"
+                    },
+                    "classCodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "example": "8810"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "Clerical Office Employees"
+                          },
+                          "effectiveDate": {
+                            "type": "string",
+                            "example": "2026-01-01"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "description",
+                          "effectiveDate"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "lineOfBusiness",
+                    "state",
+                    "classCodes"
+                  ]
+                },
+                "example": {
+                  "lineOfBusiness": "Workers Compensation",
+                  "state": "NJ",
+                  "classCodes": [
+                    {
+                      "code": "8810",
+                      "description": "Clerical Office Employees",
+                      "effectiveDate": "2026-01-01"
+                    },
+                    {
+                      "code": "8742",
+                      "description": "Outside Sales Employees",
+                      "effectiveDate": "2026-01-01"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

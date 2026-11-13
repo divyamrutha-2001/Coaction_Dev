@@ -1,0 +1,191 @@
+[
+  {
+    "tag": "Underwriting & Submissions",
+    "category": "Business Domain",
+    "description": "Appetite, risk intake, quoting, and new-business submission workflows.",
+    "owner": "Underwriting & Submissions Team",
+    "rules": [
+      "Use for broker/MGA intake, submission documents, appetite, quoting, and underwriting handoff."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Policy Administration",
+    "category": "Business Domain",
+    "description": "Policy issuance, bind, headers, terms, premium, and lifecycle servicing.",
+    "owner": "Policy Administration Team",
+    "rules": [
+      "Use for bind/issue, policy lookup, endorsements, and renewals."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Claims Management",
+    "category": "Business Domain",
+    "description": "FNOL, claim status, case reserves, and claim payments.",
+    "owner": "Claims Management Team",
+    "rules": [
+      "Use for first notice of loss, claim handling, reserves, and indemnity payments."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Risk & Exposure",
+    "category": "Business Domain",
+    "description": "Insured exposures, loss experience, and risk scoring inputs.",
+    "owner": "Risk & Exposure Team",
+    "rules": [
+      "Use for exposure schedules, loss runs, and risk scoring."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Finance",
+    "category": "Business Domain",
+    "description": "General ledger, financial transactions, and treasury movements.",
+    "owner": "Finance Team",
+    "rules": [
+      "Use for financial postings, settlement, and treasury flows."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Accounting & Billing",
+    "category": "Business Domain",
+    "description": "Premium billing, invoicing, receivables, and disbursements.",
+    "owner": "Accounting & Billing Team",
+    "rules": [
+      "Use for billing schedules, invoices, and cash application."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Reinsurance",
+    "category": "Business Domain",
+    "description": "Treaty and facultative cessions, recoveries, and bordereaux.",
+    "owner": "Reinsurance Team",
+    "rules": [
+      "Use for cession calculations, recoveries, and reinsurance reporting."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Actuarial Pricing & Modeling",
+    "category": "Business Domain",
+    "description": "Rating factors, reference data, and pricing or predictive models.",
+    "owner": "Actuarial Pricing & Modeling Team",
+    "rules": [
+      "Use for rate tables, class and territory reference data, and pricing models."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "Actuarial Reserving",
+    "category": "Business Domain",
+    "description": "Aggregate loss reserving, IBNR, and reserve development analytics.",
+    "owner": "Actuarial Reserving Team",
+    "rules": [
+      "Use for portfolio reserving, IBNR, and reserve development."
+    ],
+    "color": "hsl(var(--primary))",
+    "background": "hsl(var(--primary) / 0.1)"
+  },
+  {
+    "tag": "REST",
+    "category": "Technical Type",
+    "description": "HTTP-based JSON API exposed as REST operations.",
+    "owner": "Architecture",
+    "rules": [
+      "Document method, path parameters, request schema, response schema, and examples."
+    ],
+    "color": "hsl(172 66% 25%)",
+    "background": "hsl(var(--accent) / 0.18)"
+  },
+  {
+    "tag": "ACORD",
+    "category": "Technical Type",
+    "description": "API uses or aligns with ACORD insurance data conventions.",
+    "owner": "Enterprise Data",
+    "rules": [
+      "Confirm field naming and message shape with data standards."
+    ],
+    "color": "hsl(172 66% 25%)",
+    "background": "hsl(var(--accent) / 0.18)"
+  },
+  {
+    "tag": "PII",
+    "category": "Security",
+    "description": "API may expose personally identifiable customer, insured, claimant, or payee data.",
+    "owner": "Data Governance",
+    "rules": [
+      "Require access approval.",
+      "Mask sensitive values in lower environments where possible."
+    ],
+    "color": "hsl(var(--destructive))",
+    "background": "hsl(var(--destructive) / 0.1)"
+  },
+  {
+    "tag": "Financial",
+    "category": "Security",
+    "description": "API can expose or affect premium, reserve, payment, or financial transaction data.",
+    "owner": "Finance Controls",
+    "rules": [
+      "Audit every production call.",
+      "Restrict write operations to approved roles."
+    ],
+    "color": "hsl(var(--destructive))",
+    "background": "hsl(var(--destructive) / 0.1)"
+  },
+  {
+    "tag": "Published",
+    "category": "Lifecycle",
+    "description": "API is approved for catalog discovery and consumer onboarding.",
+    "owner": "API Governance",
+    "rules": [
+      "Published APIs need owner, version, examples, schema, and change notes."
+    ],
+    "color": "hsl(143 64% 28%)",
+    "background": "hsl(143 64% 90%)"
+  },
+  {
+    "tag": "Draft",
+    "category": "Lifecycle",
+    "description": "API is being prepared and should not be treated as consumer-ready.",
+    "owner": "API Governance",
+    "rules": [
+      "Draft APIs should not be used by production consumers."
+    ],
+    "color": "hsl(143 64% 28%)",
+    "background": "hsl(143 64% 90%)"
+  },
+  {
+    "tag": "Deprecated",
+    "category": "Lifecycle",
+    "description": "API is still visible but should be replaced by a newer version.",
+    "owner": "API Governance",
+    "rules": [
+      "Show migration guidance and planned retirement date."
+    ],
+    "color": "hsl(143 64% 28%)",
+    "background": "hsl(143 64% 90%)"
+  },
+  {
+    "tag": "Production",
+    "category": "Environment",
+    "description": "API is available in the production catalog.",
+    "owner": "API Governance",
+    "rules": [
+      "Production tags mark APIs that consumers can request access to."
+    ],
+    "color": "hsl(var(--muted))",
+    "background": "hsl(var(--muted) / 0.12)"
+  }
+]

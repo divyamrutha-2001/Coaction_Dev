@@ -1,0 +1,254 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "FNOL API",
+    "version": "v1.0",
+    "description": "Creates a new claim from First Notice of Loss and returns the claim identifier and initial assignment.",
+    "x-domain": "Claims Management",
+    "x-owner": "Claims Management Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 2,
+    "x-document": {
+      "purpose": "Creates a new claim from First Notice of Loss and returns the claim identifier and initial assignment.",
+      "whenToUse": "Use this to create a first notice of loss for a policy.",
+      "notes": [
+        "This is a claims write action.",
+        "Capture enough loss detail for initial assignment and severity triage."
+      ],
+      "errors": [
+        "Policy not active on date of loss",
+        "Missing loss description",
+        "Invalid loss date"
+      ],
+      "owner": "Claims Management Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Opens a new claim from a First Notice of Loss and assigns it to an adjuster.",
+        "evaluates": [
+          "Policy number and insured identity",
+          "Loss date, type, and severity",
+          "Claimant information and contact details"
+        ],
+        "returns": [
+          "New claim number",
+          "Assigned adjuster name and contact"
+        ]
+      },
+      "Developer": {
+        "summary": "Creates a claim record from FNOL data and returns the claim ID and adjuster assignment. Returns 201 on success.",
+        "evaluates": [
+          "Policy lookup and active status",
+          "FNOL schema and required fields",
+          "Adjuster availability and workload"
+        ],
+        "returns": [
+          "HTTP 201 with claim object and adjuster assignment",
+          "Location header with claim URI for idempotency"
+        ]
+      },
+      "Partner": {
+        "summary": "Submit loss details to create a claim. Get back a claim ID and who's handling it.",
+        "evaluates": [
+          "Policy and policyholder details",
+          "Loss description and date"
+        ],
+        "returns": [
+          "Claim ID",
+          "Adjuster assignment"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [],
+      "request": [
+        {
+          "name": "policyNumber",
+          "type": "string",
+          "required": true,
+          "description": "Policy identifier assigned by the policy administration system.",
+          "example": "POL-2026-98765"
+        },
+        {
+          "name": "dateOfLoss",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the loss occurred.",
+          "example": "2026-08-15"
+        },
+        {
+          "name": "reportedDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date when the loss was reported.",
+          "example": "2026-08-17"
+        },
+        {
+          "name": "lossType",
+          "type": "string",
+          "required": true,
+          "description": "Type or category of loss being reported.",
+          "example": "BODILY_INJURY"
+        },
+        {
+          "name": "lossLocation",
+          "type": "string",
+          "required": true,
+          "description": "Location where the loss occurred.",
+          "example": "Newark, NJ"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": true,
+          "description": "Human-readable description of the record or event.",
+          "example": "Visitor slipped and fell at insured premises."
+        }
+      ],
+      "response": [
+        {
+          "name": "claimNumber",
+          "type": "string",
+          "required": true,
+          "description": "Claim identifier assigned by the claims system.",
+          "example": "CLM-2026-45021"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "OPEN"
+        },
+        {
+          "name": "adjusterAssigned",
+          "type": "string",
+          "required": true,
+          "description": "Claim adjuster assigned when the claim is opened.",
+          "example": "John Carter"
+        },
+        {
+          "name": "severity",
+          "type": "string",
+          "required": true,
+          "description": "Claim severity classification.",
+          "example": "MEDIUM"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/claims/fnol": {
+      "post": {
+        "operationId": "fnol-api",
+        "summary": "Creates a new claim from First Notice of Loss and returns the claim identifier and initial assignment.",
+        "tags": [
+          "Production",
+          "REST",
+          "Claims Management"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Use this to create a first notice of loss for a policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "claimNumber": {
+                      "type": "string",
+                      "example": "CLM-2026-45021"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "OPEN"
+                    },
+                    "adjusterAssigned": {
+                      "type": "string",
+                      "example": "John Carter"
+                    },
+                    "severity": {
+                      "type": "string",
+                      "example": "MEDIUM"
+                    }
+                  },
+                  "required": [
+                    "claimNumber",
+                    "status",
+                    "adjusterAssigned",
+                    "severity"
+                  ]
+                },
+                "example": {
+                  "claimNumber": "CLM-2026-45021",
+                  "status": "OPEN",
+                  "adjusterAssigned": "John Carter",
+                  "severity": "MEDIUM"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policyNumber": {
+                    "type": "string",
+                    "example": "POL-2026-98765"
+                  },
+                  "dateOfLoss": {
+                    "type": "string",
+                    "example": "2026-08-15"
+                  },
+                  "reportedDate": {
+                    "type": "string",
+                    "example": "2026-08-17"
+                  },
+                  "lossType": {
+                    "type": "string",
+                    "example": "BODILY_INJURY"
+                  },
+                  "lossLocation": {
+                    "type": "string",
+                    "example": "Newark, NJ"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Visitor slipped and fell at insured premises."
+                  }
+                },
+                "required": [
+                  "policyNumber",
+                  "dateOfLoss",
+                  "reportedDate",
+                  "lossType",
+                  "lossLocation",
+                  "description"
+                ]
+              },
+              "example": {
+                "policyNumber": "POL-2026-98765",
+                "dateOfLoss": "2026-08-15",
+                "reportedDate": "2026-08-17",
+                "lossType": "BODILY_INJURY",
+                "lossLocation": "Newark, NJ",
+                "description": "Visitor slipped and fell at insured premises."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

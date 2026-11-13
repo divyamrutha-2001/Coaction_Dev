@@ -1,0 +1,251 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Claim Payment API",
+    "version": "v1.0",
+    "description": "Records or initiates a claim payment and returns the payment transaction status.",
+    "x-domain": "Claims Management",
+    "x-owner": "Claims Management Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 1,
+    "x-document": {
+      "purpose": "Records or initiates a claim payment and returns the payment transaction status.",
+      "whenToUse": "Use this to request or approve a claim payment.",
+      "notes": [
+        "Payment calls are sensitive financial transactions.",
+        "Production testing should be blocked unless explicitly approved."
+      ],
+      "errors": [
+        "Invalid payee",
+        "Amount exceeds authority",
+        "Duplicate invoice number"
+      ],
+      "owner": "Claims Management Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Records or initiates a claim payment and returns the payment transaction status.",
+        "evaluates": [
+          "POST /api/v1/claims/{claimNumber}/payments"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Developer": {
+        "summary": "Records or initiates a claim payment and returns the payment transaction status.",
+        "evaluates": [
+          "POST /api/v1/claims/{claimNumber}/payments"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Partner": {
+        "summary": "Records or initiates a claim payment and returns the payment transaction status.",
+        "evaluates": [
+          "POST /api/v1/claims/{claimNumber}/payments"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "claimNumber",
+          "type": "string",
+          "required": true,
+          "description": "claimNumber path parameter used to identify the target resource.",
+          "example": "CLM-2026-45021"
+        }
+      ],
+      "request": [
+        {
+          "name": "paymentType",
+          "type": "string",
+          "required": true,
+          "description": "Type of claim payment being requested.",
+          "example": "INDEMNITY"
+        },
+        {
+          "name": "payee",
+          "type": "string",
+          "required": true,
+          "description": "Payment recipient.",
+          "example": "John Doe"
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "required": true,
+          "description": "Value for amount.",
+          "example": "15000"
+        },
+        {
+          "name": "paymentMethod",
+          "type": "string",
+          "required": true,
+          "description": "Payment method used for the transaction.",
+          "example": "ACH"
+        },
+        {
+          "name": "invoiceNumber",
+          "type": "string",
+          "required": false,
+          "description": "Invoice number associated with a claim payment.",
+          "example": "INV-7821"
+        }
+      ],
+      "response": [
+        {
+          "name": "paymentId",
+          "type": "string",
+          "required": true,
+          "description": "Payment identifier returned by the claims payment service.",
+          "example": "PAY-55231"
+        },
+        {
+          "name": "amount",
+          "type": "integer",
+          "required": true,
+          "description": "Value for amount.",
+          "example": "15000"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "APPROVED"
+        },
+        {
+          "name": "paymentDate",
+          "type": "date string",
+          "required": true,
+          "description": "Date the payment is scheduled or approved.",
+          "example": "2026-08-18"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/claims/{claimNumber}/payments": {
+      "post": {
+        "operationId": "claim-payment-api",
+        "summary": "Records or initiates a claim payment and returns the payment transaction status.",
+        "tags": [
+          "Production",
+          "REST",
+          "Claims Management"
+        ],
+        "parameters": [
+          {
+            "name": "claimNumber",
+            "in": "path",
+            "required": true,
+            "description": "claimNumber identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "CLM-2026-45021"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Use this to request or approve a claim payment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "paymentId": {
+                      "type": "string",
+                      "example": "PAY-55231"
+                    },
+                    "amount": {
+                      "type": "integer",
+                      "example": 15000
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "APPROVED"
+                    },
+                    "paymentDate": {
+                      "type": "string",
+                      "example": "2026-08-18"
+                    }
+                  },
+                  "required": [
+                    "paymentId",
+                    "amount",
+                    "status",
+                    "paymentDate"
+                  ]
+                },
+                "example": {
+                  "paymentId": "PAY-55231",
+                  "amount": 15000,
+                  "status": "APPROVED",
+                  "paymentDate": "2026-08-18"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paymentType": {
+                    "type": "string",
+                    "example": "INDEMNITY"
+                  },
+                  "payee": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "example": 15000
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "example": "ACH"
+                  },
+                  "invoiceNumber": {
+                    "type": "string",
+                    "example": "INV-7821"
+                  }
+                },
+                "required": [
+                  "paymentType",
+                  "payee",
+                  "amount",
+                  "paymentMethod"
+                ]
+              },
+              "example": {
+                "paymentType": "INDEMNITY",
+                "payee": "John Doe",
+                "amount": 15000,
+                "paymentMethod": "ACH",
+                "invoiceNumber": "INV-7821"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,246 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Risk Score API",
+    "version": "v1.0",
+    "description": "Returns a risk score, risk tier, recommendation and explainable risk factors.",
+    "x-domain": "Risk & Exposure",
+    "x-owner": "Risk & Exposure Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 3,
+    "x-document": {
+      "purpose": "Returns a risk score, risk tier, recommendation and explainable risk factors.",
+      "whenToUse": "Use this when underwriting needs a modeled risk score and recommendation.",
+      "notes": [
+        "Factors explain major drivers behind the score.",
+        "Scores should support underwriting judgment, not replace it."
+      ],
+      "errors": [
+        "Submission ID not found",
+        "Incomplete exposure or loss data"
+      ],
+      "owner": "Risk & Exposure Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Returns a risk score, risk tier, recommendation and explainable risk factors.",
+        "evaluates": [
+          "POST /api/v1/underwriting/risk-score"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Developer": {
+        "summary": "Returns a risk score, risk tier, recommendation and explainable risk factors.",
+        "evaluates": [
+          "POST /api/v1/underwriting/risk-score"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Partner": {
+        "summary": "Returns a risk score, risk tier, recommendation and explainable risk factors.",
+        "evaluates": [
+          "POST /api/v1/underwriting/risk-score"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [],
+      "request": [
+        {
+          "name": "submissionId",
+          "type": "string",
+          "required": true,
+          "description": "Submission identifier assigned by the submissions system.",
+          "example": "SUB-2026-10452"
+        },
+        {
+          "name": "annualRevenue",
+          "type": "integer",
+          "required": false,
+          "description": "Annual business revenue used for underwriting and appetite decisions.",
+          "example": "25000000"
+        },
+        {
+          "name": "employeeCount",
+          "type": "integer",
+          "required": false,
+          "description": "Number of employees used for risk scoring or exposure data.",
+          "example": "175"
+        },
+        {
+          "name": "priorLossCount",
+          "type": "integer",
+          "required": false,
+          "description": "Number of prior losses used in underwriting or scoring.",
+          "example": "3"
+        },
+        {
+          "name": "priorLossAmount",
+          "type": "integer",
+          "required": false,
+          "description": "Total prior loss amount used in risk scoring.",
+          "example": "425000"
+        },
+        {
+          "name": "yearsInBusiness",
+          "type": "integer",
+          "required": false,
+          "description": "Number of years the insured has been operating.",
+          "example": "12"
+        }
+      ],
+      "response": [
+        {
+          "name": "riskScore",
+          "type": "integer",
+          "required": true,
+          "description": "Numeric risk score produced by the scoring model.",
+          "example": "72"
+        },
+        {
+          "name": "riskTier",
+          "type": "string",
+          "required": true,
+          "description": "Risk tier derived from the numeric score.",
+          "example": "MODERATE"
+        },
+        {
+          "name": "recommendation",
+          "type": "string",
+          "required": true,
+          "description": "Recommended underwriting action.",
+          "example": "REFER"
+        },
+        {
+          "name": "factors",
+          "type": "string[]",
+          "required": true,
+          "description": "Risk factors that influenced the score or recommendation.",
+          "example": "[\"Elevated loss frequency\",\"Loss severity above peer average\"]"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/underwriting/risk-score": {
+      "post": {
+        "operationId": "risk-score-api",
+        "summary": "Returns a risk score, risk tier, recommendation and explainable risk factors.",
+        "tags": [
+          "Production",
+          "REST",
+          "Risk & Exposure"
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Use this when underwriting needs a modeled risk score and recommendation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "riskScore": {
+                      "type": "integer",
+                      "example": 72
+                    },
+                    "riskTier": {
+                      "type": "string",
+                      "example": "MODERATE"
+                    },
+                    "recommendation": {
+                      "type": "string",
+                      "example": "REFER"
+                    },
+                    "factors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "example": "Elevated loss frequency"
+                      }
+                    }
+                  },
+                  "required": [
+                    "riskScore",
+                    "riskTier",
+                    "recommendation",
+                    "factors"
+                  ]
+                },
+                "example": {
+                  "riskScore": 72,
+                  "riskTier": "MODERATE",
+                  "recommendation": "REFER",
+                  "factors": [
+                    "Elevated loss frequency",
+                    "Loss severity above peer average"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "submissionId": {
+                    "type": "string",
+                    "example": "SUB-2026-10452"
+                  },
+                  "annualRevenue": {
+                    "type": "integer",
+                    "example": 25000000
+                  },
+                  "employeeCount": {
+                    "type": "integer",
+                    "example": 175
+                  },
+                  "priorLossCount": {
+                    "type": "integer",
+                    "example": 3
+                  },
+                  "priorLossAmount": {
+                    "type": "integer",
+                    "example": 425000
+                  },
+                  "yearsInBusiness": {
+                    "type": "integer",
+                    "example": 12
+                  }
+                },
+                "required": [
+                  "submissionId"
+                ]
+              },
+              "example": {
+                "submissionId": "SUB-2026-10452",
+                "annualRevenue": 25000000,
+                "employeeCount": 175,
+                "priorLossCount": 3,
+                "priorLossAmount": 425000,
+                "yearsInBusiness": 12
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

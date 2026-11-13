@@ -1,0 +1,195 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Claim Status API",
+    "version": "v1.0",
+    "description": "Returns current claim status, lifecycle stage, assigned adjuster and financial snapshot.",
+    "x-domain": "Claims Management",
+    "x-owner": "Claims Management Team",
+    "x-lifecycle": "Published",
+    "x-consumers": 3,
+    "x-document": {
+      "purpose": "Returns current claim status, lifecycle stage, assigned adjuster and financial snapshot.",
+      "whenToUse": "Use this to check the current status and handling stage of a claim.",
+      "notes": [
+        "This is a read-only claim lookup.",
+        "Use next review date for workflow follow-up."
+      ],
+      "errors": [
+        "Claim not found",
+        "User does not have claim access"
+      ],
+      "owner": "Claims Management Team"
+    },
+    "x-explanations": {
+      "Business": {
+        "summary": "Returns current claim status, lifecycle stage, assigned adjuster and financial snapshot.",
+        "evaluates": [
+          "GET /api/v1/claims/{claimNumber}/status"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Developer": {
+        "summary": "Returns current claim status, lifecycle stage, assigned adjuster and financial snapshot.",
+        "evaluates": [
+          "GET /api/v1/claims/{claimNumber}/status"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      },
+      "Partner": {
+        "summary": "Returns current claim status, lifecycle stage, assigned adjuster and financial snapshot.",
+        "evaluates": [
+          "GET /api/v1/claims/{claimNumber}/status"
+        ],
+        "returns": [
+          "The example response in this spec"
+        ]
+      }
+    },
+    "x-fields": {
+      "pathParameters": [
+        {
+          "name": "claimNumber",
+          "type": "string",
+          "required": true,
+          "description": "claimNumber path parameter used to identify the target resource.",
+          "example": "CLM-2026-45021"
+        }
+      ],
+      "request": [],
+      "response": [
+        {
+          "name": "claimNumber",
+          "type": "string",
+          "required": true,
+          "description": "Claim identifier assigned by the claims system.",
+          "example": "CLM-2026-45021"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true,
+          "description": "Current lifecycle, workflow, policy, claim, or transaction status.",
+          "example": "OPEN"
+        },
+        {
+          "name": "claimStage",
+          "type": "string",
+          "required": true,
+          "description": "Current claim handling stage.",
+          "example": "INVESTIGATION"
+        },
+        {
+          "name": "adjuster",
+          "type": "string",
+          "required": true,
+          "description": "Claim adjuster currently assigned to the claim.",
+          "example": "John Carter"
+        },
+        {
+          "name": "totalIncurred",
+          "type": "integer",
+          "required": true,
+          "description": "Paid plus reserved amount for a claim.",
+          "example": "95000"
+        },
+        {
+          "name": "nextReviewDate",
+          "type": "date string",
+          "required": true,
+          "description": "Next scheduled review date for the claim.",
+          "example": "2026-09-01"
+        }
+      ]
+    }
+  },
+  "servers": [
+    {
+      "url": "sandbox://spec",
+      "description": "Sandbox. Try It returns the example saved in this file."
+    }
+  ],
+  "paths": {
+    "/api/v1/claims/{claimNumber}/status": {
+      "get": {
+        "operationId": "claim-status-api",
+        "summary": "Returns current claim status, lifecycle stage, assigned adjuster and financial snapshot.",
+        "tags": [
+          "Production",
+          "REST",
+          "Claims Management"
+        ],
+        "parameters": [
+          {
+            "name": "claimNumber",
+            "in": "path",
+            "required": true,
+            "description": "claimNumber identifies the record you want.",
+            "schema": {
+              "type": "string",
+              "example": "CLM-2026-45021"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use this to check the current status and handling stage of a claim.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "claimNumber": {
+                      "type": "string",
+                      "example": "CLM-2026-45021"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "OPEN"
+                    },
+                    "claimStage": {
+                      "type": "string",
+                      "example": "INVESTIGATION"
+                    },
+                    "adjuster": {
+                      "type": "string",
+                      "example": "John Carter"
+                    },
+                    "totalIncurred": {
+                      "type": "integer",
+                      "example": 95000
+                    },
+                    "nextReviewDate": {
+                      "type": "string",
+                      "example": "2026-09-01"
+                    }
+                  },
+                  "required": [
+                    "claimNumber",
+                    "status",
+                    "claimStage",
+                    "adjuster",
+                    "totalIncurred",
+                    "nextReviewDate"
+                  ]
+                },
+                "example": {
+                  "claimNumber": "CLM-2026-45021",
+                  "status": "OPEN",
+                  "claimStage": "INVESTIGATION",
+                  "adjuster": "John Carter",
+                  "totalIncurred": 95000,
+                  "nextReviewDate": "2026-09-01"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
